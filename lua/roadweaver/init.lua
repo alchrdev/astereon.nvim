@@ -59,6 +59,16 @@ M.config = {
 
   -- Built-in keymaps (prefer configuring them in your setup)
   set_default_keymaps = false,
+
+  -- Auto index refresh
+  auto_refresh = {
+    enable = true,
+    events = {
+      "BufWritePost",
+      "BufFilePost",
+      "DirChanged",
+    },
+  },
 }
 
 -- ========= Path & small helpers =========
@@ -183,6 +193,10 @@ local function list_markdown_files(root)
   return walk_files(root, { ".md" })
 end
 
+local function is_markdown(path)
+  return string.lower(path or ""):sub(-3) == ".md"
+end
+
 local function read_first_title(path)
   local f = io.open(path, "r")
   if not f then
@@ -239,6 +253,19 @@ local function get_note_index(root)
     return cached
   end
   return refresh_note_index(root)
+end
+
+local function invalidate_index_for(path)
+  path = norm(path)
+  if path == "" then
+    return
+  end
+  local root = norm(vim.fn.getcwd())
+  local rel = relpath(root, path)
+  if rel:sub(1,1) == "." or rel:find("..", 1, true) then
+    return
+  end
+  Index.invalidate(root)
 end
 
 local function slugify(s)
@@ -1037,10 +1064,37 @@ function M.refresh_index()
   vim.notify("RoadWeaver: note index refreshed", vim.log.levels.INFO)
 end
 
+local function setup_auto_refresh()
+  local cfg = M.config.auto_refresh or {}
+  if cfg.enable == false then
+    return
+  end
+  local events = cfg.events or { "BufWritePost", "BufFilePost", "DirChanged" }
+  local group = vim.api.nvim_create_augroup("RoadWeaverAutoRefresh", { clear = true })
+  vim.api.nvim_create_autocmd(events, {
+    group = group,
+    callback = function(params)
+      local event = params.event
+      if event == "DirChanged" then
+        Index.invalidate(norm(vim.fn.getcwd()))
+        return
+      end
+      local file = params.match or params.file or ""
+      if file == "" then
+        return
+      end
+      if is_markdown(file) then
+        invalidate_index_for(file)
+      end
+    end,
+  })
+end
+
 -- ========= Setup =========
 
 function M.setup(cfg)
   M.config = vim.tbl_deep_extend("force", M.config, cfg or {})
+  setup_auto_refresh()
 
   vim.api.nvim_create_user_command("InsertMdLink", function(o)
     local arg = o.args

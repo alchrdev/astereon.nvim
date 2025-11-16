@@ -4,6 +4,11 @@
 local Index = require("roadweaver.index")
 
 local M = {}
+M.state = {
+  daily = {
+    current = nil,
+  },
+}
 
 M.config = {
   -- Notes
@@ -29,6 +34,17 @@ M.config = {
       preset = nil,
       layout = nil,
       show_index_numbers = nil,
+    },
+  },
+
+  daily = {
+    enable = false,
+    folder = "apsn/dly",
+    template = nil,                -- function(date, heading): string
+    mappings = {
+      today = "<leader>ot",
+      next = "<leader>on",
+      prev = "<leader>op",
     },
   },
 
@@ -290,6 +306,118 @@ local function slugify(s)
     s = "note-" .. os.date("%H%M%S")
   end
   return s
+end
+
+local function daily_heading(date_str)
+  local day_names = { "domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado" }
+  local month_names = { "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre" }
+  local year, month, day = date_str:match("^(%d+)%-(%d+)%-(%d+)$")
+  if not year then
+    return date_str
+  end
+  local now = os.time()
+  local parts = {
+    year = tonumber(year),
+    month = tonumber(month),
+    day = tonumber(day),
+    hour = tonumber(os.date("%H", now)),
+    min = tonumber(os.date("%M", now)),
+    sec = tonumber(os.date("%S", now)),
+  }
+  local ts = os.time(parts)
+  local day_name = day_names[tonumber(os.date("%w", ts)) + 1]
+  local hour = tonumber(os.date("%I", now))
+  local minute = os.date("%M", now)
+  local second = os.date("%S", now)
+  local am_pm = os.date("%p", now)
+  return string.format("> 📓 %s, %02d de %s del año %s a las %02d:%s:%s %s",
+    day_name, tonumber(day) or 0, month_names[tonumber(month)] or month, year, hour, minute, second, am_pm)
+end
+
+local function daily_today()
+  return os.date("%Y-%m-%d")
+end
+
+local function daily_parse(date_str)
+  local year, month, day = date_str:match("^(%d+)%-(%d+)%-(%d+)$")
+  if not year then
+    return nil
+  end
+  return { year = tonumber(year), month = tonumber(month), day = tonumber(day) }
+end
+
+local function daily_relative(date_str, offset)
+  local parsed = daily_parse(date_str)
+  if not parsed then
+    return daily_today()
+  end
+  local ts = os.time(parsed) + (offset * 24 * 60 * 60)
+  return os.date("%Y-%m-%d", ts)
+end
+
+local function default_daily_template(date, heading)
+  return table.concat({
+    "---",
+    "mood:",
+    "location:",
+    "weather:",
+    "bed_time:",
+    "sleep_hours:",
+    "nap_hours:",
+    "get_up:",
+    "flow_state:",
+    "---",
+    "",
+    heading,
+    "",
+  }, "\n")
+end
+
+local function daily_folder_path()
+  local dcfg = M.config.daily or {}
+  local folder = dcfg.folder
+  if not folder or folder == "" then
+    return nil
+  end
+  local root = norm(vim.fn.getcwd())
+  return norm(root .. "/" .. folder)
+end
+
+local function daily_open(date)
+  local dcfg = M.config.daily or {}
+  local folder = daily_folder_path()
+  if not folder then
+    vim.notify("RoadWeaver: daily.folder is not configured", vim.log.levels.WARN)
+    return
+  end
+  vim.fn.mkdir(folder, "p")
+  local path = norm(folder .. "/" .. date .. ".md")
+  local exists = vim.loop.fs_stat(path) ~= nil
+  if not exists then
+    local template = dcfg.template or default_daily_template
+    local ok, content = pcall(template, date, daily_heading(date))
+    if not ok or type(content) ~= "string" then
+      content = default_daily_template(date, daily_heading(date))
+    end
+    local f = io.open(path, "w")
+    if not f then
+      vim.notify("RoadWeaver: unable to create daily note at " .. path, vim.log.levels.ERROR)
+      return
+    end
+    f:write(content)
+    f:close()
+  end
+  vim.cmd.edit(vim.fn.fnameescape(path))
+  M.state.daily.current = date
+  if not exists then
+    vim.notify("RoadWeaver: daily note created for " .. date, vim.log.levels.INFO)
+  end
+end
+
+local function daily_open_relative(offset)
+  local base = M.state.daily.current or daily_today()
+  local target = daily_relative(base, offset)
+  daily_open(target)
 end
 
 local function titlecase(str)
@@ -999,6 +1127,21 @@ function M.open_media_pick()
   end)
 end
 
+-- ========= Daily notes =========
+
+function M.open_daily_today()
+  M.state.daily.current = nil
+  daily_open(daily_today())
+end
+
+function M.open_daily_next()
+  daily_open_relative(1)
+end
+
+function M.open_daily_prev()
+  daily_open_relative(-1)
+end
+
 -- ========= Rename current file =========
 
 local function prompt_overwrite(target_name, cb)
@@ -1215,6 +1358,18 @@ function M.setup(cfg)
     M.open_folder_pick()
   end, {})
 
+  if (M.config.daily and M.config.daily.enable) then
+    vim.api.nvim_create_user_command("RoadWeaverDailyToday", function()
+      M.open_daily_today()
+    end, {})
+    vim.api.nvim_create_user_command("RoadWeaverDailyNext", function()
+      M.open_daily_next()
+    end, {})
+    vim.api.nvim_create_user_command("RoadWeaverDailyPrev", function()
+      M.open_daily_prev()
+    end, {})
+  end
+
   if M.config.set_default_keymaps then
     local map = vim.keymap.set
     map("n", "<leader>nn", function() M.create_note({ open_mode = "edit" }) end,
@@ -1227,6 +1382,22 @@ function M.setup(cfg)
     map("n", "<leader>mi", function() M.search_media_link() end,  { desc = "RoadWeaver: insert media link" })
     map("n", "<leader>mo", function() M.open_media_pick() end,    { desc = "RoadWeaver: open media" })
     map("n", "<leader>rf", function() M.rename_current_file() end, { desc = "RoadWeaver: rename note" })
+
+    local dcfg = M.config.daily or {}
+    if dcfg.enable and dcfg.mappings then
+      if dcfg.mappings.today then
+        map("n", dcfg.mappings.today, function() M.open_daily_today() end,
+          { desc = "RoadWeaver: open today's daily note" })
+      end
+      if dcfg.mappings.next then
+        map("n", dcfg.mappings.next, function() M.open_daily_next() end,
+          { desc = "RoadWeaver: open next daily note" })
+      end
+      if dcfg.mappings.prev then
+        map("n", dcfg.mappings.prev, function() M.open_daily_prev() end,
+          { desc = "RoadWeaver: open previous daily note" })
+      end
+    end
   end
 end
 

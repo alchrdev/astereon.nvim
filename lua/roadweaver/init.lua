@@ -54,6 +54,7 @@ M.config = {
   snacks = {
     enable = true,
     preset = "vscode",
+    show_index_numbers = true,
   },
 
   -- Built-in keymaps (prefer configuring them in your setup)
@@ -363,21 +364,90 @@ local function snacks_ok()
   return ok
 end
 
+local function snacks_select(items, opts, on_choice)
+  assert(type(on_choice) == "function", "on_choice must be a function")
+  opts = opts or {}
+
+  local scfg = M.config.snacks or {}
+  local show_numbers = scfg.show_index_numbers ~= false
+  local format_item = opts.format_item or tostring
+  local finder_items = {}
+  for idx, item in ipairs(items) do
+    local text = format_item(item)
+    local prefix = show_numbers and (idx .. " ") or ""
+    table.insert(finder_items, {
+      formatted = text,
+      text = prefix .. text,
+      item = item,
+      idx = idx,
+    })
+  end
+
+  local title = opts.prompt or "Select"
+  title = title:gsub("^%s*", ""):gsub("[%s:]*$", "")
+
+  local layout = scfg.layout
+  if not layout and scfg.preset then
+    layout = { preset = scfg.preset }
+  end
+  if layout then
+    layout = vim.deepcopy(layout)
+  else
+    layout = {
+      preview = false,
+      layout = {
+        height = math.floor(math.min(vim.o.lines * 0.8 - 10, #items + 2) + 0.5),
+      },
+    }
+  end
+
+  local Snacks = require("snacks")
+  local completed = false
+
+  local format_fn
+  if show_numbers then
+    format_fn = Snacks.picker.format.ui_select(opts.kind, #items)
+  else
+    format_fn = function(entry)
+      return { { entry.formatted } }
+    end
+  end
+
+  return Snacks.picker.pick({
+    source = "select",
+    items = finder_items,
+    format = format_fn,
+    title = title,
+    layout = layout,
+    actions = {
+      confirm = function(picker, item)
+        if completed then
+          return
+        end
+        completed = true
+        picker:close()
+        vim.schedule(function()
+          on_choice(item and item.item, item and item.idx)
+        end)
+      end,
+    },
+    on_close = function()
+      if completed then
+        return
+      end
+      completed = true
+      vim.schedule(on_choice)
+    end,
+  })
+end
+
 local function select_ui(items, opts, on_choice)
   opts = opts or {}
   local prompt = opts.prompt or ""
   local format_item = opts.format_item
 
   if snacks_ok() then
-    local S = require("snacks")
-    local picker_opts = {
-      prompt = prompt,
-      format_item = format_item,
-      layout = { preset = (M.config.snacks and M.config.snacks.preset) or "vscode" },
-    }
-    S.picker.select(items, picker_opts, function(it)
-      on_choice(it)
-    end)
+    snacks_select(items, { prompt = prompt, format_item = format_item }, on_choice)
   else
     vim.ui.select(items, { prompt = prompt, format_item = format_item }, on_choice)
   end

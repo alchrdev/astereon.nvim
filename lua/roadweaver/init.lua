@@ -38,6 +38,12 @@ M.config = {
     display = "filename",         -- "filename" | "filename+path"
     embed_images = true,          -- if true, images insert as ![]()
     prompt_alt_for_images = true, -- ask alt on image insert
+    snacks = {
+      preview = false,            -- enable Snacks preview panel for media pickers
+      preset = nil,               -- override picker preset (fallbacks to global snacks preset)
+      layout = nil,               -- full layout table override
+      show_index_numbers = nil,   -- override numbering specifically for media pickers
+    },
   },
 
   -- Rename behavior
@@ -396,36 +402,46 @@ local function snacks_select(items, opts, on_choice)
   opts = opts or {}
 
   local scfg = M.config.snacks or {}
-  local show_numbers = scfg.show_index_numbers ~= false
+  local override = opts.snacks or {}
+  local show_numbers = override.show_index_numbers
+  if show_numbers == nil then
+    show_numbers = scfg.show_index_numbers ~= false
+  end
   local format_item = opts.format_item or tostring
+  local get_file = override.get_file
+  local get_title = override.get_title
+  local get_cwd = override.get_cwd
   local finder_items = {}
   for idx, item in ipairs(items) do
     local text = format_item(item)
     local prefix = show_numbers and (idx .. " ") or ""
-    table.insert(finder_items, {
+    local entry = {
       formatted = text,
       text = prefix .. text,
       item = item,
       idx = idx,
-    })
+    }
+    if get_file then
+      entry.file = get_file(item)
+    end
+    if get_title then
+      entry.title = get_title(item)
+    end
+    if get_cwd then
+      entry.cwd = get_cwd(item)
+    end
+    table.insert(finder_items, entry)
   end
 
   local title = opts.prompt or "Select"
   title = title:gsub("^%s*", ""):gsub("[%s:]*$", "")
 
-  local layout = scfg.layout
-  if not layout and scfg.preset then
-    layout = { preset = scfg.preset }
-  end
+  local layout = override.layout or scfg.layout
+  local preset = override.preset or scfg.preset or "vscode"
   if layout then
     layout = vim.deepcopy(layout)
   else
-    layout = {
-      preview = false,
-      layout = {
-        height = math.floor(math.min(vim.o.lines * 0.8 - 10, #items + 2) + 0.5),
-      },
-    }
+    layout = { preset = preset }
   end
 
   local Snacks = require("snacks")
@@ -440,12 +456,20 @@ local function snacks_select(items, opts, on_choice)
     end
   end
 
+  local preview = override.preview
+  if preview == true then
+    preview = "file"
+  end
+
   return Snacks.picker.pick({
     source = "select",
     items = finder_items,
     format = format_fn,
     title = title,
     layout = layout,
+    preview = preview,
+    previewer = override.previewer,
+    previewers = override.previewers,
     actions = {
       confirm = function(picker, item)
         if completed then
@@ -470,13 +494,10 @@ end
 
 local function select_ui(items, opts, on_choice)
   opts = opts or {}
-  local prompt = opts.prompt or ""
-  local format_item = opts.format_item
-
   if snacks_ok() then
-    snacks_select(items, { prompt = prompt, format_item = format_item }, on_choice)
+    snacks_select(items, opts, on_choice)
   else
-    vim.ui.select(items, { prompt = prompt, format_item = format_item }, on_choice)
+    vim.ui.select(items, { prompt = opts.prompt, format_item = opts.format_item }, on_choice)
   end
 end
 
@@ -546,6 +567,26 @@ local function build_media_items(root, here)
   end)
 
   return items
+end
+
+local function media_snacks_options()
+  local mcfg = M.config.media or {}
+  local scfg = mcfg.snacks or {}
+  if not scfg.preview then
+    return nil
+  end
+  return {
+    preview = scfg.preview,
+    layout = scfg.layout,
+    preset = scfg.preset,
+    show_index_numbers = scfg.show_index_numbers,
+    get_file = function(item)
+      return item.path
+    end,
+    get_title = function(item)
+      return item.filename
+    end,
+  }
 end
 
 local function make_note_formatter(mode)
@@ -887,6 +928,7 @@ function M.search_media_link()
   select_ui(items, {
     prompt = "Insert link to media…",
     format_item = make_media_formatter(mode),
+    snacks = media_snacks_options(),
   }, function(item)
     if not item then
       return
@@ -906,6 +948,7 @@ function M.open_media_pick()
   select_ui(items, {
     prompt = "Open media…",
     format_item = make_media_formatter(mode),
+    snacks = media_snacks_options(),
   }, function(item)
     if not item then
       return

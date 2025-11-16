@@ -24,6 +24,12 @@ M.config = {
     folder_search_link = "label+path",
     open_pick          = "filename",
     open_folder_pick   = "label+path",
+    snacks = {
+      preview = false,
+      preset = nil,
+      layout = nil,
+      show_index_numbers = nil,
+    },
   },
 
   -- Media
@@ -572,7 +578,7 @@ end
 local function media_snacks_options()
   local mcfg = M.config.media or {}
   local scfg = mcfg.snacks or {}
-  if not scfg.preview then
+  if not (scfg and scfg.preview) then
     return nil
   end
   return {
@@ -585,6 +591,38 @@ local function media_snacks_options()
     end,
     get_title = function(item)
       return item.filename
+    end,
+  }
+end
+
+local function note_snacks_options(section)
+  local display = M.config.display or {}
+  local scfg = display.snacks
+  if type(scfg) ~= "table" then
+    return nil
+  end
+  local base = scfg
+  if type(scfg.default) == "table" then
+    base = scfg.default
+  end
+  local opts = (section and type(scfg[section]) == "table" and scfg[section]) or base
+  if type(opts) ~= "table" or not opts.preview then
+    return nil
+  end
+  local merged = opts
+  if opts ~= base and base then
+    merged = vim.tbl_deep_extend("force", {}, base, opts)
+  end
+  return {
+    preview = merged.preview,
+    layout = merged.layout,
+    preset = merged.preset,
+    show_index_numbers = merged.show_index_numbers,
+    get_file = function(item)
+      return item.path
+    end,
+    get_title = function(item)
+      return item.label or item.stem
     end,
   }
 end
@@ -764,6 +802,7 @@ function M.search_link(opts)
   select_ui(items, {
     prompt = "Insert link to note…",
     format_item = make_note_formatter(mode),
+    snacks = note_snacks_options("search_link"),
   }, function(item)
     if not item then
       return
@@ -810,6 +849,7 @@ function M.folder_search_link(opts)
     select_ui(filtered, {
       prompt = "Insert link to note…",
       format_item = make_note_formatter(mode),
+      snacks = note_snacks_options("folder_search_link"),
     }, function(item)
       if not item then
         return
@@ -848,6 +888,7 @@ function M.open_pick()
   select_ui(items, {
     prompt = "Open note…",
     format_item = make_note_formatter(mode),
+    snacks = note_snacks_options("open_pick"),
   }, function(item)
     if not item then
       return
@@ -899,6 +940,7 @@ function M.open_folder_pick()
     select_ui(filtered, {
       prompt = "Open note…",
       format_item = make_note_formatter(mode),
+      snacks = note_snacks_options("open_folder_pick"),
     }, function(item)
       if not item then
         return

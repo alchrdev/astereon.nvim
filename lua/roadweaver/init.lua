@@ -37,6 +37,10 @@ M.config = {
     },
   },
 
+  ids = {
+    format = "%Y%m%d%H%M%S",
+  },
+
   daily = {
     enable = false,
     folder = "apsn/dly",
@@ -308,6 +312,16 @@ local function slugify(s)
   return s
 end
 
+local function generate_note_id()
+  local icfg = M.config.ids or {}
+  local fmt = icfg.format or "%Y%m%d%H%M%S"
+  local ok, value = pcall(os.date, fmt)
+  if not ok or not value or value == "" then
+    value = tostring(os.time())
+  end
+  return value
+end
+
 local function daily_heading(date_str)
   local day_names = { "domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado" }
   local month_names = { "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre" }
@@ -496,6 +510,43 @@ status: 'draft'
 # %s
 
 ]], id, title, slug, title)
+end
+
+local function rewrite_yaml_id(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local new_id = generate_note_id()
+  local yaml_start, yaml_end
+  for idx, line in ipairs(lines) do
+    if line:match("^%s*%-%-%-%s*$") then
+      if not yaml_start then
+        yaml_start = idx
+      else
+        yaml_end = idx
+        break
+      end
+    end
+  end
+  if yaml_start and yaml_end and yaml_end > yaml_start then
+    local replaced = false
+    for i = yaml_start + 1, yaml_end - 1 do
+      if lines[i]:match("^%s*id%s*:") then
+        local indent = lines[i]:match("^(%s*)") or ""
+        lines[i] = indent .. "id: " .. new_id
+        replaced = true
+        break
+      end
+    end
+    if not replaced then
+      table.insert(lines, yaml_start + 1, "id: " .. new_id)
+    end
+  else
+    table.insert(lines, 1, "---")
+    table.insert(lines, 2, "id: " .. new_id)
+    table.insert(lines, 3, "---")
+  end
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  vim.notify("RoadWeaver: updated YAML id -> " .. new_id, vim.log.levels.INFO)
 end
 
 local function insert_text(text)
@@ -877,7 +928,7 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
         return
       end
       local slug = slugify(title)
-      local id   = os.date("%Y%m%d%H")
+      local id   = generate_note_id()
       local template = M.config.new_note_template or default_template
       local content = template(title, slug, id)
 
@@ -1142,6 +1193,10 @@ function M.open_daily_prev()
   daily_open_relative(-1)
 end
 
+function M.update_note_id()
+  rewrite_yaml_id()
+end
+
 -- ========= Rename current file =========
 
 local function prompt_overwrite(target_name, cb)
@@ -1358,6 +1413,10 @@ function M.setup(cfg)
     M.open_folder_pick()
   end, {})
 
+  vim.api.nvim_create_user_command("RoadWeaverUpdateId", function()
+    M.update_note_id()
+  end, {})
+
   if (M.config.daily and M.config.daily.enable) then
     vim.api.nvim_create_user_command("RoadWeaverDailyToday", function()
       M.open_daily_today()
@@ -1382,6 +1441,7 @@ function M.setup(cfg)
     map("n", "<leader>mi", function() M.search_media_link() end,  { desc = "RoadWeaver: insert media link" })
     map("n", "<leader>mo", function() M.open_media_pick() end,    { desc = "RoadWeaver: open media" })
     map("n", "<leader>rf", function() M.rename_current_file() end, { desc = "RoadWeaver: rename note" })
+    map("n", "<leader>uy", function() M.update_note_id() end,     { desc = "RoadWeaver: regenerate YAML id" })
 
     local dcfg = M.config.daily or {}
     if dcfg.enable and dcfg.mappings then

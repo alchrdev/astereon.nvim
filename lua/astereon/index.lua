@@ -29,7 +29,7 @@ function Index.refresh(root, builder)
       items = result
     else
       local message = ok and "result is not a table" or result
-      vim.notify(string.format("RoadWeaver: index refresh failed (%s)", message), vim.log.levels.ERROR)
+      vim.notify(string.format("Astereon: index refresh failed (%s)", message), vim.log.levels.ERROR)
     end
   end
   local entry = ensure_state(root)

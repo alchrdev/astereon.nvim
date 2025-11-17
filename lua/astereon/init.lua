@@ -1,7 +1,7 @@
--- RoadWeaver.nvim — Markdown links & media + Safe rename (updates references)
+-- Astereon.nvim — Markdown links & media + Safe rename (updates references)
 -- Snacks integration (pickers) with fallback to vim.ui.select
 
-local Index = require("roadweaver.index")
+local Index = require("astereon.index")
 
 local M = {}
 M.state = {
@@ -401,7 +401,7 @@ local function daily_open(date)
   local dcfg = M.config.daily or {}
   local folder = daily_folder_path()
   if not folder then
-    vim.notify("RoadWeaver: daily.folder is not configured", vim.log.levels.WARN)
+    vim.notify("Astereon: daily.folder is not configured", vim.log.levels.WARN)
     return
   end
   vim.fn.mkdir(folder, "p")
@@ -415,7 +415,7 @@ local function daily_open(date)
     end
     local f = io.open(path, "w")
     if not f then
-      vim.notify("RoadWeaver: unable to create daily note at " .. path, vim.log.levels.ERROR)
+      vim.notify("Astereon: unable to create daily note at " .. path, vim.log.levels.ERROR)
       return
     end
     f:write(content)
@@ -424,7 +424,7 @@ local function daily_open(date)
   vim.cmd.edit(vim.fn.fnameescape(path))
   M.state.daily.current = date
   if not exists then
-    vim.notify("RoadWeaver: daily note created for " .. date, vim.log.levels.INFO)
+    vim.notify("Astereon: daily note created for " .. date, vim.log.levels.INFO)
   end
 end
 
@@ -546,7 +546,7 @@ local function rewrite_yaml_id(bufnr)
     table.insert(lines, 3, "---")
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-  vim.notify("RoadWeaver: updated YAML id -> " .. new_id, vim.log.levels.INFO)
+  vim.notify("Astereon: updated YAML id -> " .. new_id, vim.log.levels.INFO)
 end
 
 local function insert_text(text)
@@ -974,7 +974,7 @@ function M.search_link(opts)
   local label_mode = opts.label_mode or M.config.label_mode
   local items = build_note_items(root, here, label_mode)
   if #items == 0 then
-    vim.notify("RoadWeaver: no markdown notes found", vim.log.levels.WARN)
+    vim.notify("Astereon: no markdown notes found", vim.log.levels.WARN)
     return
   end
   local mode = (M.config.display and M.config.display.search_link) or "filename"
@@ -996,7 +996,7 @@ function M.folder_search_link(opts)
   local label_mode = opts.label_mode or M.config.label_mode
   local items = build_note_items(root, here, label_mode)
   if #items == 0 then
-    vim.notify("RoadWeaver: no markdown notes found", vim.log.levels.WARN)
+    vim.notify("Astereon: no markdown notes found", vim.log.levels.WARN)
     return
   end
 
@@ -1021,7 +1021,7 @@ function M.folder_search_link(opts)
       end
     end
     if #filtered == 0 then
-      vim.notify("RoadWeaver: no notes in folder " .. folder, vim.log.levels.WARN)
+      vim.notify("Astereon: no notes in folder " .. folder, vim.log.levels.WARN)
       return
     end
     local mode = (M.config.display and M.config.display.folder_search_link) or "label+path"
@@ -1060,7 +1060,7 @@ function M.open_pick()
   local root, here = vim.fn.getcwd(), buf_dir()
   local items = build_note_items(root, here, M.config.label_mode)
   if #items == 0 then
-    vim.notify("RoadWeaver: no markdown notes found", vim.log.levels.WARN)
+    vim.notify("Astereon: no markdown notes found", vim.log.levels.WARN)
     return
   end
   local mode = (M.config.display and M.config.display.open_pick) or "filename"
@@ -1087,7 +1087,7 @@ function M.open_folder_pick()
   local root, here = vim.fn.getcwd(), buf_dir()
   local items = build_note_items(root, here, M.config.label_mode)
   if #items == 0 then
-    vim.notify("RoadWeaver: no markdown notes found", vim.log.levels.WARN)
+    vim.notify("Astereon: no markdown notes found", vim.log.levels.WARN)
     return
   end
 
@@ -1112,7 +1112,7 @@ function M.open_folder_pick()
       end
     end
     if #filtered == 0 then
-      vim.notify("RoadWeaver: no notes in folder " .. folder, vim.log.levels.WARN)
+      vim.notify("Astereon: no notes in folder " .. folder, vim.log.levels.WARN)
       return
     end
     local mode = (M.config.display and M.config.display.open_folder_pick) or "label+path"
@@ -1142,7 +1142,7 @@ function M.search_media_link()
   local root, here = vim.fn.getcwd(), buf_dir()
   local items = build_media_items(root, here)
   if #items == 0 then
-    vim.notify("RoadWeaver: no media files found", vim.log.levels.WARN)
+    vim.notify("Astereon: no media files found", vim.log.levels.WARN)
     return
   end
   local mode = (M.config.media and M.config.media.display) or "filename"
@@ -1162,7 +1162,7 @@ function M.open_media_pick()
   local root, here = vim.fn.getcwd(), buf_dir()
   local items = build_media_items(root, here)
   if #items == 0 then
-    vim.notify("RoadWeaver: no media files found", vim.log.levels.WARN)
+    vim.notify("Astereon: no media files found", vim.log.levels.WARN)
     return
   end
   local mode = (M.config.media and M.config.media.display) or "filename"
@@ -1281,7 +1281,7 @@ end
 function M.rename_current_file()
   local current = vim.api.nvim_buf_get_name(0)
   if current == "" then
-    vim.notify("RoadWeaver: current buffer has no file name", vim.log.levels.WARN)
+    vim.notify("Astereon: current buffer has no file name", vim.log.levels.WARN)
     return
   end
 
@@ -1306,7 +1306,7 @@ function M.rename_current_file()
     local function proceed()
       local ok, err = os.rename(old_abs, new_abs)
       if not ok then
-        vim.notify("RoadWeaver: rename failed: " .. tostring(err), vim.log.levels.ERROR)
+        vim.notify("Astereon: rename failed: " .. tostring(err), vim.log.levels.ERROR)
         return
       end
 
@@ -1325,7 +1325,7 @@ function M.rename_current_file()
       end
       Index.invalidate(root)
 
-      vim.notify("RoadWeaver: file renamed and links updated", vim.log.levels.INFO)
+      vim.notify("Astereon: file renamed and links updated", vim.log.levels.INFO)
     end
 
     if vim.loop.fs_stat(new_abs) then
@@ -1344,7 +1344,7 @@ end
 function M.refresh_index()
   local root = norm(vim.fn.getcwd())
   refresh_note_index(root)
-  vim.notify("RoadWeaver: note index refreshed", vim.log.levels.INFO)
+  vim.notify("Astereon: note index refreshed", vim.log.levels.INFO)
 end
 
 local function setup_auto_refresh()
@@ -1353,7 +1353,7 @@ local function setup_auto_refresh()
     return
   end
   local events = cfg.events or { "BufWritePost", "BufFilePost", "DirChanged" }
-  local group = vim.api.nvim_create_augroup("RoadWeaverAutoRefresh", { clear = true })
+  local group = vim.api.nvim_create_augroup("AstereonAutoRefresh", { clear = true })
   vim.api.nvim_create_autocmd(events, {
     group = group,
     callback = function(params)
@@ -1393,38 +1393,38 @@ function M.setup(cfg)
     end,
   })
 
-  vim.api.nvim_create_user_command("RoadWeaverNewNote", function()
+  vim.api.nvim_create_user_command("AstereonNewNote", function()
     M.create_note({ open_mode = "edit" })
   end, {})
 
-  vim.api.nvim_create_user_command("RoadWeaverRename", function()
+  vim.api.nvim_create_user_command("AstereonRename", function()
     M.rename_current_file()
   end, {})
 
-  vim.api.nvim_create_user_command("RoadWeaverRefreshIndex", function()
+  vim.api.nvim_create_user_command("AstereonRefreshIndex", function()
     M.refresh_index()
   end, {})
 
-  vim.api.nvim_create_user_command("RoadWeaverOpen", function()
+  vim.api.nvim_create_user_command("AstereonOpen", function()
     M.open_pick()
   end, {})
 
-  vim.api.nvim_create_user_command("RoadWeaverOpenFolder", function()
+  vim.api.nvim_create_user_command("AstereonOpenFolder", function()
     M.open_folder_pick()
   end, {})
 
-  vim.api.nvim_create_user_command("RoadWeaverUpdateId", function()
+  vim.api.nvim_create_user_command("AstereonUpdateId", function()
     M.update_note_id()
   end, {})
 
   if (M.config.daily and M.config.daily.enable) then
-    vim.api.nvim_create_user_command("RoadWeaverDailyToday", function()
+    vim.api.nvim_create_user_command("AstereonDailyToday", function()
       M.open_daily_today()
     end, {})
-    vim.api.nvim_create_user_command("RoadWeaverDailyNext", function()
+    vim.api.nvim_create_user_command("AstereonDailyNext", function()
       M.open_daily_next()
     end, {})
-    vim.api.nvim_create_user_command("RoadWeaverDailyPrev", function()
+    vim.api.nvim_create_user_command("AstereonDailyPrev", function()
       M.open_daily_prev()
     end, {})
   end
@@ -1432,30 +1432,30 @@ function M.setup(cfg)
   if M.config.set_default_keymaps then
     local map = vim.keymap.set
     map("n", "<leader>nn", function() M.create_note({ open_mode = "edit" }) end,
-      { desc = "RoadWeaver: create note" })
-    map("n", "<leader>nL", function() M.create_and_link() end,    { desc = "RoadWeaver: create note + link" })
-    map("n", "<leader>nl", function() M.search_link() end,        { desc = "RoadWeaver: insert note link" })
-    map("n", "<leader>nf", function() M.folder_search_link() end, { desc = "RoadWeaver: folder link" })
-    map("n", "<leader>no", function() M.open_pick() end,          { desc = "RoadWeaver: open note" })
-    map("n", "<leader>nF", function() M.open_folder_pick() end,   { desc = "RoadWeaver: open by folder" })
-    map("n", "<leader>mi", function() M.search_media_link() end,  { desc = "RoadWeaver: insert media link" })
-    map("n", "<leader>mo", function() M.open_media_pick() end,    { desc = "RoadWeaver: open media" })
-    map("n", "<leader>rf", function() M.rename_current_file() end, { desc = "RoadWeaver: rename note" })
-    map("n", "<leader>uy", function() M.update_note_id() end,     { desc = "RoadWeaver: regenerate YAML id" })
+      { desc = "Astereon: create note" })
+    map("n", "<leader>nL", function() M.create_and_link() end,    { desc = "Astereon: create note + link" })
+    map("n", "<leader>nl", function() M.search_link() end,        { desc = "Astereon: insert note link" })
+    map("n", "<leader>nf", function() M.folder_search_link() end, { desc = "Astereon: folder link" })
+    map("n", "<leader>no", function() M.open_pick() end,          { desc = "Astereon: open note" })
+    map("n", "<leader>nF", function() M.open_folder_pick() end,   { desc = "Astereon: open by folder" })
+    map("n", "<leader>mi", function() M.search_media_link() end,  { desc = "Astereon: insert media link" })
+    map("n", "<leader>mo", function() M.open_media_pick() end,    { desc = "Astereon: open media" })
+    map("n", "<leader>rf", function() M.rename_current_file() end, { desc = "Astereon: rename note" })
+    map("n", "<leader>uy", function() M.update_note_id() end,     { desc = "Astereon: regenerate YAML id" })
 
     local dcfg = M.config.daily or {}
     if dcfg.enable and dcfg.mappings then
       if dcfg.mappings.today then
         map("n", dcfg.mappings.today, function() M.open_daily_today() end,
-          { desc = "RoadWeaver: open today's daily note" })
+          { desc = "Astereon: open today's daily note" })
       end
       if dcfg.mappings.next then
         map("n", dcfg.mappings.next, function() M.open_daily_next() end,
-          { desc = "RoadWeaver: open next daily note" })
+          { desc = "Astereon: open next daily note" })
       end
       if dcfg.mappings.prev then
         map("n", dcfg.mappings.prev, function() M.open_daily_prev() end,
-          { desc = "RoadWeaver: open previous daily note" })
+          { desc = "Astereon: open previous daily note" })
       end
     end
   end

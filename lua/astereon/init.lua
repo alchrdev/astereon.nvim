@@ -863,7 +863,7 @@ local function do_insert_media_link(item)
 
   if is_img and mcfg.embed_images then
     if mcfg.prompt_alt_for_images then
-      input_ui({ prompt = "Image alt text:" }, function(alt)
+      input_ui({ prompt = " Image alt text:" }, function(alt)
         alt = alt or ""
         local text = string.format("![%s](%s)", alt, href)
         insert_text(text)
@@ -919,11 +919,11 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
     choices = { "." }
   end
 
-  select_ui(choices, { prompt = "Destination folder…" }, function(dir_rel)
+  select_ui(choices, { prompt = " Destination folder…" }, function(dir_rel)
     if not dir_rel then
       return
     end
-    input_ui({ prompt = "New note title:" }, function(title)
+    input_ui({ prompt = " New note title:" }, function(title)
       if not title or title == "" then
         return
       end
@@ -979,7 +979,7 @@ function M.search_link(opts)
   end
   local mode = (M.config.display and M.config.display.search_link) or "filename"
   select_ui(items, {
-    prompt = "Insert link to note…",
+    prompt = " Insert link to note…",
     format_item = make_note_formatter(mode),
     snacks = note_snacks_options("search_link"),
   }, function(item)
@@ -1010,7 +1010,7 @@ function M.folder_search_link(opts)
   end
   table.sort(folders)
 
-  select_ui(folders, { prompt = "Folder for note link…" }, function(folder)
+  select_ui(folders, { prompt = " Folder for note link…" }, function(folder)
     if not folder then
       return
     end
@@ -1026,7 +1026,7 @@ function M.folder_search_link(opts)
     end
     local mode = (M.config.display and M.config.display.folder_search_link) or "label+path"
     select_ui(filtered, {
-      prompt = "Insert link to note…",
+      prompt = " Insert link to note…",
       format_item = make_note_formatter(mode),
       snacks = note_snacks_options("folder_search_link"),
     }, function(item)
@@ -1065,7 +1065,7 @@ function M.open_pick()
   end
   local mode = (M.config.display and M.config.display.open_pick) or "filename"
   select_ui(items, {
-    prompt = "Open note…",
+    prompt = " Open note…",
     format_item = make_note_formatter(mode),
     snacks = note_snacks_options("open_pick"),
   }, function(item)
@@ -1101,7 +1101,7 @@ function M.open_folder_pick()
   end
   table.sort(folders)
 
-  select_ui(folders, { prompt = "Folder for note…" }, function(folder)
+  select_ui(folders, { prompt = " Folder for note…" }, function(folder)
     if not folder then
       return
     end
@@ -1117,7 +1117,7 @@ function M.open_folder_pick()
     end
     local mode = (M.config.display and M.config.display.open_folder_pick) or "label+path"
     select_ui(filtered, {
-      prompt = "Open note…",
+      prompt = " Open note…",
       format_item = make_note_formatter(mode),
       snacks = note_snacks_options("open_folder_pick"),
     }, function(item)
@@ -1147,7 +1147,7 @@ function M.search_media_link()
   end
   local mode = (M.config.media and M.config.media.display) or "filename"
   select_ui(items, {
-    prompt = "Insert link to media…",
+    prompt = " Insert link to media…",
     format_item = make_media_formatter(mode),
     snacks = media_snacks_options(),
   }, function(item)
@@ -1167,7 +1167,7 @@ function M.open_media_pick()
   end
   local mode = (M.config.media and M.config.media.display) or "filename"
   select_ui(items, {
-    prompt = "Open media…",
+    prompt = " Open media…",
     format_item = make_media_formatter(mode),
     snacks = media_snacks_options(),
   }, function(item)
@@ -1200,7 +1200,7 @@ end
 -- ========= Rename current file =========
 
 local function prompt_overwrite(target_name, cb)
-  select_ui({ "No", "Yes" }, { prompt = ("Overwrite %q?"):format(target_name) }, function(choice)
+  select_ui({ "No", "Yes" }, { prompt = (" Overwrite %q?"):format(target_name) }, function(choice)
     cb(choice == "Yes")
   end)
 end
@@ -1290,7 +1290,7 @@ function M.rename_current_file()
   local ext = old_abs:match("^.+(%.[^%.]+)$") or ""
   local default_name = vim.fn.fnamemodify(old_abs, ":t")
 
-  input_ui({ prompt = "New file name:", default = default_name }, function(input)
+  input_ui({ prompt = " New file name:", default = default_name }, function(input)
     if not input or input == "" or input == default_name then
       return
     end

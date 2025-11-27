@@ -157,7 +157,14 @@ local function relpath(from, to)
   return rel
 end
 
-local function is_ignored(path)
+-- ========= File System Helpers (Optimized with fd/rg) =========
+
+local function has_executable(name)
+  return vim.fn.executable(name) == 1
+end
+
+-- Fallback: Check if ignored (Only used if 'fd' is missing)
+local function is_ignored_fallback(path)
   local ignore = M.config.ignore_dirs or {}
   local set = {}
   for _, d in ipairs(ignore) do
@@ -165,75 +172,25 @@ local function is_ignored(path)
   end
   local parts = split_parts(path or "")
   for _, seg in ipairs(parts) do
-    if set[seg] then
-      return true
-    end
+    if set[seg] then return true end
   end
   return false
 end
 
-local function has_ext(name, exts)
-  if not exts then
-    return true
-  end
+-- Fallback: Check extension (Only used if 'fd' is missing)
+local function has_ext_fallback(name, exts)
+  if not exts then return true end
   local lower = string.lower(name or "")
   for _, e in ipairs(exts) do
-    if lower:sub(-#e) == e then
-      return true
-    end
+    if lower:sub(-#e) == e then return true end
   end
   return false
 end
 
-local function walk_files(root, exts)
-  root = norm(root)
-  local results = {}
-  local limit = M.config.scan_limit or 5000
-
-  local function scan(dir)
-    if #results >= limit then
-      return
-    end
-    local fd = vim.loop.fs_scandir(dir)
-    if not fd then
-      return
-    end
-    while true do
-      local name, t = vim.loop.fs_scandir_next(fd)
-      if not name then
-        break
-      end
-      local full = dir .. "/" .. name
-      if t == "directory" then
-        if not is_ignored(full) then
-          scan(full)
-        end
-      else
-        if has_ext(name, exts) then
-          table.insert(results, norm(full))
-        end
-      end
-    end
-  end
-
-  scan(root)
-  table.sort(results)
-  return results
-end
-
-local function list_markdown_files(root)
-  return walk_files(root, { ".md" })
-end
-
-local function is_markdown(path)
-  return string.lower(path or ""):sub(-3) == ".md"
-end
-
-local function read_first_title(path)
+-- Fallback: Read title from disk (Only used if 'rg' is missing)
+local function read_first_title_fallback(path)
   local f = io.open(path, "r")
-  if not f then
-    return nil
-  end
+  if not f then return nil end
   for line in f:lines() do
     local t = line:match("^%s*#%s+(.+)")
     if t then
@@ -247,16 +204,131 @@ local function read_first_title(path)
   return nil
 end
 
+-- GENERIC SCANNER (Optimized for Media and Notes)
+-- If 'fd' exists, use the OS. Otherwise, use Lua loop.
+local function walk_files(root, exts_with_dot)
+  root = norm(root)
+  local results = {}
+  
+  if has_executable("fd") then
+    -- Build arguments to ignore directories
+    local ignore_args = {}
+    local ignore_dirs = M.config.ignore_dirs or { ".git", ".obsidian", "node_modules" }
+    for _, d in ipairs(ignore_dirs) do
+      table.insert(ignore_args, "-E")
+      table.insert(ignore_args, string.format("'%s'", d)) 
+    end
+    
+    -- Build extension arguments (fd uses "md", not ".md")
+    local ext_args = {}
+    if exts_with_dot then
+      for _, e in ipairs(exts_with_dot) do
+        local clean = e:gsub("^%.", "") -- remove leading dot
+        if clean ~= "" then
+          table.insert(ext_args, "-e")
+          table.insert(ext_args, clean)
+        end
+      end
+    end
+
+    -- Execute fd (fast)
+    -- --absolute-path ensures compatibility with norm()
+    -- --color never prevents ANSI garbage
+    local cmd = string.format("fd . '%s' --type f --absolute-path --color never %s %s", 
+      root, table.concat(ext_args, " "), table.concat(ignore_args, " "))
+    
+    results = vim.fn.systemlist(cmd)
+    
+    -- Normalize results to ensure consistency
+    for i, path in ipairs(results) do
+      results[i] = norm(path)
+    end
+    
+  else
+    -- SLOW MODE (Pure Lua)
+    local limit = M.config.scan_limit or 5000
+    local function scan(dir)
+      if #results >= limit then return end
+      local fd = vim.loop.fs_scandir(dir)
+      if not fd then return end
+      while true do
+        local name, t = vim.loop.fs_scandir_next(fd)
+        if not name then break end
+        local full = dir .. "/" .. name
+        if t == "directory" then
+          if not is_ignored_fallback(full) then scan(full) end
+        else
+          if has_ext_fallback(name, exts_with_dot) then
+            table.insert(results, norm(full))
+          end
+        end
+      end
+    end
+    scan(root)
+    table.sort(results)
+  end
+  
+  return results
+end
+
+local function list_markdown_files(root)
+  return walk_files(root, { ".md" })
+end
+
+local function is_markdown(path)
+  return string.lower(path or ""):sub(-3) == ".md"
+end
+
+-- INDEX SCANNER (Optimized with rg)
 local function scan_note_index(root)
   root = norm(root)
+  
+  -- 1. Get file list (Already optimized by walk_files above)
   local files = list_markdown_files(root)
+  
+  -- 2. Get title map (Optimized with ripgrep)
+  local title_map = {}
+  local use_rg = has_executable("rg")
+
+  if use_rg and #files > 0 then
+    -- Find H1 in all .md files within root at once
+    -- Use -m 1 to stop at the first hit per file
+    local cmd = string.format("rg -m 1 --no-heading --with-filename --line-number \"^#\\s+(.+)\" '%s' -g \"*.md\"", root)
+    local grep_results = vim.fn.systemlist(cmd)
+    
+    for _, line in ipairs(grep_results) do
+      -- Safe parsing of rg output
+      local path, content = line:match("^(.*):%d+:#%s+(.*)$")
+      if path and content then
+        path = norm(path)
+        content = content:gsub("%s+$", "") -- trim end
+        title_map[path] = content
+      end
+    end
+  end
+
+  -- 3. Merge data in memory
   local base = {}
+  local limit = M.config.scan_limit or 5000
+  local count = 0
+
   for _, path in ipairs(files) do
+    if count >= limit then break end
     local abs = norm(path)
+    
+    -- Hybrid strategy:
+    -- Try to get title from ripgrep map.
+    -- If missing (e.g., file has no H1), title is nil.
+    -- If rg is not installed, use slow fallback.
+    local title = title_map[abs]
+    if not title and not use_rg then
+      title = read_first_title_fallback(abs)
+    end
+
     local stem = vim.fn.fnamemodify(abs, ":t:r")
     local rel_from_root = relpath(root, abs)
     local folder = rel_from_root:match("(.+)/[^/]+$") or "."
-    local title = read_first_title(abs)
+
     table.insert(base, {
       path = abs,
       stem = stem,
@@ -264,7 +336,9 @@ local function scan_note_index(root)
       rel_from_root = rel_from_root,
       folder = folder,
     })
+    count = count + 1
   end
+
   table.sort(base, function(a, b)
     return a.rel_from_root < b.rel_from_root
   end)
@@ -630,6 +704,10 @@ local function snacks_select(items, opts, on_choice)
   end
 
   local Snacks = require("snacks")
+  
+  -- FIX FOR RESUME: 
+  -- 'completed' only protects 'on_close' (cancellation), but we allow
+  -- 'confirm' to always execute, even if resumed.
   local completed = false
 
   local format_fn
@@ -657,9 +735,8 @@ local function snacks_select(items, opts, on_choice)
     previewers = override.previewers,
     actions = {
       confirm = function(picker, item)
-        if completed then
-          return
-        end
+        -- We removed "if completed then return end" here.
+        -- This ensures that if the picker is resumed, selection still works.
         completed = true
         picker:close()
         vim.schedule(function()
@@ -923,7 +1000,7 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
     if not dir_rel then
       return
     end
-    input_ui({ prompt = " New note title:" }, function(title)
+    input_ui({ prompt = "󱇧 New note title:" }, function(title)
       if not title or title == "" then
         return
       end
@@ -1290,7 +1367,7 @@ function M.rename_current_file()
   local ext = old_abs:match("^.+(%.[^%.]+)$") or ""
   local default_name = vim.fn.fnamemodify(old_abs, ":t")
 
-  input_ui({ prompt = " New file name:", default = default_name }, function(input)
+  input_ui({ prompt = "󱇧 New file name:", default = default_name }, function(input)
     if not input or input == "" or input == default_name then
       return
     end
@@ -1314,7 +1391,7 @@ function M.rename_current_file()
         vim.api.nvim_buf_set_name(0, new_abs)
       end
 
-      local title = read_first_title(new_abs)
+      local title = read_first_title_fallback(new_abs) -- Use fallback here as it's just 1 file
       local stem = vim.fn.fnamemodify(new_abs, ":t:r")
       local label_for_note = compute_new_label(stem, title)
 

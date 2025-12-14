@@ -204,6 +204,64 @@ local function read_first_title_fallback(path)
   return nil
 end
 
+-- Persistent cache for note titles (H1)
+-- Stored under stdpath("cache") so it is safe to delete; it will be rebuilt.
+local AST_CACHE_VERSION = 1
+
+local function ast_cache_dir()
+  return vim.fn.stdpath("cache") .. "/astereon"
+end
+
+local function ast_cache_key(root)
+  local ok, hash = pcall(vim.fn.sha256, root)
+  if ok and type(hash) == "string" and #hash >= 12 then
+    return hash:sub(1, 12)
+  end
+  -- Fallback: sanitize (avoid path separators)
+  local key = (root or ""):gsub("[/\\:]", "_"):gsub("%s+", "_")
+  if key == "" then key = "cwd" end
+  return key:sub(1, 80)
+end
+
+local function ast_cache_path_for_root(root)
+  return ast_cache_dir() .. "/titles_" .. ast_cache_key(root) .. ".json"
+end
+
+local function ast_read_json(path)
+  local ok, lines = pcall(vim.fn.readfile, path)
+  if not ok or type(lines) ~= "table" or #lines == 0 then
+    return nil
+  end
+  local text = table.concat(lines, "\n")
+  local ok2, obj = pcall(vim.fn.json_decode, text)
+  if ok2 and type(obj) == "table" then
+    return obj
+  end
+  return nil
+end
+
+local function ast_write_json_atomic(path, obj)
+  local dir = vim.fn.fnamemodify(path, ":h")
+  pcall(vim.fn.mkdir, dir, "p")
+  local json = vim.fn.json_encode(obj)
+
+  local tmp = path .. ".tmp"
+  local ok = pcall(vim.fn.writefile, { json }, tmp)
+  if not ok then return end
+  pcall(os.rename, tmp, path)
+end
+
+local function ast_mtime_sec(path)
+  local st = vim.loop.fs_stat(path)
+  if not st or not st.mtime then
+    return nil
+  end
+  if type(st.mtime) == "table" then
+    return st.mtime.sec
+  end
+  return st.mtime
+end
+
 -- GENERIC SCANNER (Optimized for Media and Notes)
 -- If 'fd' exists, use the OS. Otherwise, use Lua loop.
 local function walk_files(root, exts_with_dot)
@@ -285,29 +343,98 @@ local function scan_note_index(root)
   
   -- 1. Get file list (Already optimized by walk_files above)
   local files = list_markdown_files(root)
-  
-  -- 2. Get title map (Optimized with ripgrep)
-  local title_map = {}
+
+  -- 2. Titles (persistent cache; refresh by mtime so titles never go stale)
+  local cache_path = ast_cache_path_for_root(root)
+  local cache = ast_read_json(cache_path)
+
+  local titles = {}
+  local mtimes = {}
   local use_rg = has_executable("rg")
 
-  if use_rg and #files > 0 then
-    -- Find H1 in all .md files within root at once
-    -- Use -m 1 to stop at the first hit per file
-    local cmd = string.format("rg -m 1 --no-heading --with-filename --line-number \"^#\\s+(.+)\" '%s' -g \"*.md\"", root)
-    local grep_results = vim.fn.systemlist(cmd)
-    
-    for _, line in ipairs(grep_results) do
-      -- Safe parsing of rg output
-      local path, content = line:match("^(.*):%d+:#%s+(.*)$")
-      if path and content then
-        path = norm(path)
-        content = content:gsub("%s+$", "") -- trim end
-        title_map[path] = content
+  local cache_ok = cache
+    and cache.version == AST_CACHE_VERSION
+    and cache.root == root
+    and type(cache.titles) == "table"
+    and type(cache.mtimes) == "table"
+
+  if cache_ok then
+    titles = cache.titles
+    mtimes = cache.mtimes
+  end
+
+  local dirty = false
+
+  -- If cache is missing/invalid, build once (prefer rg for speed)
+  if not cache_ok then
+    if use_rg and #files > 0 then
+      local cmd = string.format("rg -m 1 --no-heading --with-filename --line-number \"^#\\s+(.+)\" '%s' -g \"*.md\"", root)
+      local grep_results = vim.fn.systemlist(cmd)
+      for _, line in ipairs(grep_results) do
+        local path, content = line:match("^(.*):%d+:#%s+(.*)$")
+        if path and content then
+          path = norm(path)
+          content = content:gsub("%s+$", "")
+          titles[path] = content
+        end
       end
+    end
+
+    for _, p in ipairs(files) do
+      local abs = norm(p)
+      local ms = ast_mtime_sec(abs)
+      if ms then mtimes[abs] = ms end
+
+      -- Store empty string for "no title" to avoid re-reading every time
+      if titles[abs] == nil then
+        local t = (not use_rg) and read_first_title_fallback(abs) or nil
+        titles[abs] = t or ""
+      end
+    end
+
+    dirty = true
+  end
+
+  -- Refresh changed files (mtime-based)
+  local present = {}
+  for _, p in ipairs(files) do
+    local abs = norm(p)
+    present[abs] = true
+
+    local ms = ast_mtime_sec(abs)
+    if ms and mtimes[abs] ~= ms then
+      local t = read_first_title_fallback(abs)
+      titles[abs] = t or ""
+      mtimes[abs] = ms
+      dirty = true
+    elseif ms and mtimes[abs] == nil then
+      -- New file with no previous mtime entry
+      local t = read_first_title_fallback(abs)
+      titles[abs] = t or ""
+      mtimes[abs] = ms
+      dirty = true
     end
   end
 
-  -- 3. Merge data in memory
+  -- Remove deleted files from cache
+  for p, _ in pairs(mtimes) do
+    if not present[p] then
+      mtimes[p] = nil
+      titles[p] = nil
+      dirty = true
+    end
+  end
+
+  if dirty then
+    ast_write_json_atomic(cache_path, {
+      version = AST_CACHE_VERSION,
+      root = root,
+      titles = titles,
+      mtimes = mtimes,
+    })
+  end
+
+-- 3. Merge data in memory
   local base = {}
   local limit = M.config.scan_limit or 5000
   local count = 0
@@ -320,7 +447,8 @@ local function scan_note_index(root)
     -- Try to get title from ripgrep map.
     -- If missing (e.g., file has no H1), title is nil.
     -- If rg is not installed, use slow fallback.
-    local title = title_map[abs]
+    local title = titles[abs]
+    if title == "" then title = nil end
     if not title and not use_rg then
       title = read_first_title_fallback(abs)
     end
@@ -1424,6 +1552,22 @@ function M.refresh_index()
   vim.notify("Astereon: note index refreshed", vim.log.levels.INFO)
 end
 
+function M.rebuild_titles_cache()
+  local root = norm(vim.fn.getcwd())
+  local cache_path = ast_cache_path_for_root(root)
+
+  -- Remove on-disk titles cache so the next refresh rebuilds everything.
+  pcall(vim.loop.fs_unlink, cache_path)
+  pcall(vim.loop.fs_unlink, cache_path .. ".tmp")
+
+  -- Drop in-memory index and rebuild (also recreates cache file).
+  Index.invalidate(root)
+  refresh_note_index(root)
+
+  vim.notify("Astereon: titles cache rebuilt", vim.log.levels.INFO)
+end
+
+
 local function setup_auto_refresh()
   local cfg = M.config.auto_refresh or {}
   if cfg.enable == false then
@@ -1458,7 +1602,7 @@ function M.setup(cfg)
 
   vim.api.nvim_create_user_command("InsertMdLink", function(o)
     local arg = o.args
-    local lm
+    local lm = nil
     if arg == "auto" or arg == "title" or arg == "basename" then
       lm = arg
     end
@@ -1469,6 +1613,11 @@ function M.setup(cfg)
       return { "auto", "title", "basename" }
     end,
   })
+
+  -- NEW: rebuild titles cache (safe; only touches stdpath("cache")/astereon)
+  vim.api.nvim_create_user_command("AstereonRebuildTitlesCache", function()
+    M.rebuild_titles_cache()
+  end, {})
 
   vim.api.nvim_create_user_command("AstereonNewNote", function()
     M.create_note({ open_mode = "edit" })

@@ -8,7 +8,7 @@ The name blends **aster** (star) with **eon** (an almost eternal span of time). 
 
 ## ⚙️ Key Features
 
-- Scans every Markdown note under the working directory, respects ignored folders, and caches an index for fast lookups.
+- Scans every Markdown note under the working directory, respects ignored folders, and caches an index (including a persistent H1 titles cache) for fast lookups—even after reboot.
 - Inserts links to notes or media files with configurable labels (automatic, title, filename, etc.).
 - Guided creation of new notes with Lua templates, preferred directories, and automatic opening in the desired window.
 - Selection flows for opening notes, narrowing results to a folder, or linking immediately after creating a note.
@@ -22,6 +22,9 @@ The name blends **aster** (star) with **eon** (an almost eternal span of time). 
 ## 📋 Requirements
 
 - Neovim 0.9+ (LuaJIT).
+- Recommended for best performance:
+  - `fd` (fast file walker)
+  - `rg` / ripgrep (fast H1 title extraction)
 - Optional: [`folke/snacks.nvim`](https://github.com/folke/snacks.nvim) if you want its UI; otherwise `vim.ui.select/input` is used.
 
 ## 📦 Installation
@@ -56,27 +59,29 @@ return {
     },
   },
 }
-```
+````
 
 ## 🚀 Quick Start
 
 1. `:cd` or `:lcd` into the vault you want to work with (Astereon indexes everything under `vim.fn.getcwd()`).
 2. Call `require("astereon").setup({ ... })` during startup with the options you want.
 3. Run `:AstereonNewNote` to create something new, `:AstereonOpen` to jump to an existing note, or `:AstereonRename` to safely rename the current file.
+4. If you changed files outside Neovim, run `:AstereonRefreshIndex`. If you want to force a full titles cache rebuild, run `:AstereonRebuildTitlesCache`.
 
 From here you can wire the Lua functions into your own mappings or use the built-in ones.
 
 ### 🧭 Commands & Keymaps
 
-| Command | What it does |
-| --- | --- |
-| `:InsertMdLink [auto\|title\|basename]` | Search notes and insert a Markdown link honoring `label_mode`. |
-| `:AstereonNewNote` | Create a note from your template, asking where to store it. |
-| `:AstereonOpen` / `:AstereonOpenFolder` | Open a note (optionally filter by folder first). |
-| `:AstereonRename` | Rename the current file and patch every relative reference. |
-| `:AstereonRefreshIndex` | Re-scan the vault when you make external changes. |
-| `:AstereonUpdateId` | Reroll the YAML `id` in the current buffer. |
-| `:AstereonDailyToday`, `:AstereonDailyNext`, `:AstereonDailyPrev` | Create/open daily notes (only when `daily.enable = true`). |
+| Command                                                           | What it does                                                                                   |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `:InsertMdLink [auto\|title\|basename]`                           | Search notes and insert a Markdown link honoring `label_mode`.                                 |
+| `:AstereonNewNote`                                                | Create a note from your template, asking where to store it.                                    |
+| `:AstereonOpen` / `:AstereonOpenFolder`                           | Open a note (optionally filter by folder first).                                               |
+| `:AstereonRename`                                                 | Rename the current file and patch every relative reference.                                    |
+| `:AstereonRefreshIndex`                                           | Re-scan the vault when you make external changes.                                              |
+| `:AstereonRebuildTitlesCache`                                     | Force a full rebuild of the persistent H1 titles cache (useful after large renames/checkouts). |
+| `:AstereonUpdateId`                                               | Reroll the YAML `id` in the current buffer.                                                    |
+| `:AstereonDailyToday`, `:AstereonDailyNext`, `:AstereonDailyPrev` | Create/open daily notes (only when `daily.enable = true`).                                     |
 
 Lua helpers mirror these commands, so custom mappings look like:
 
@@ -94,33 +99,33 @@ vim.keymap.set("n", "<leader>rf", astereon.rename_current_file, { desc = "Rename
 
 Set `set_default_keymaps = true` if you want Astereon to register a ready-made `<leader>` layer:
 
-| Mapping | Action |
-| --- | --- |
-| `<leader>nn` | Create note |
-| `<leader>nL` | Create note + insert link |
-| `<leader>nl` / `<leader>nf` | Insert note link / folder-scoped link |
+| Mapping                     | Action                                   |
+| --------------------------- | ---------------------------------------- |
+| `<leader>nn`                | Create note                              |
+| `<leader>nL`                | Create note + insert link                |
+| `<leader>nl` / `<leader>nf` | Insert note link / folder-scoped link    |
 | `<leader>no` / `<leader>nF` | Open note / open note filtered by folder |
-| `<leader>mi` / `<leader>mo` | Insert media link / open media file |
-| `<leader>rf` | Rename current file |
-| `<leader>uy` | Regenerate YAML ID |
-| (daily mappings) | Configurable via `daily.mappings` |
+| `<leader>mi` / `<leader>mo` | Insert media link / open media file      |
+| `<leader>rf`                | Rename current file                      |
+| `<leader>uy`                | Regenerate YAML ID                       |
+| (daily mappings)            | Configurable via `daily.mappings`        |
 
 ### 🔁 Available Flows
 
-- **Quick linking**: `astereon.search_link()` displays a label-sorted picker; `folder_search_link()` narrows to a folder, and `create_and_link()` spawns a new note then inserts its link immediately.
-- **Opening**: `open_pick()` and `open_folder_pick()` open notes and honor `open_pick_mode = "edit"|"split"|"vsplit"`.
-- **Media files**: `search_media_link()` inserts `[]()` or `![]()` based on extension (configurable list); `open_media_pick()` opens the file in Neovim for editing or preview.
-- **Daily notes**: `open_daily_today/next/prev` create or open files inside `daily.folder`. The default heading is generated in Spanish, and you can override the body with `daily.template(date, heading)`.
-- **Safe rename**: `rename_current_file()` prompts for the new name (keeps the extension) and updates every relative Markdown link in the vault, including reference-style links and `![]()` if `rename.include_images` is enabled.
-- **Metadata**: `update_note_id()` ensures a unique YAML `id` based on `ids.format` (defaults to `%Y%m%d%H%M%S`).
+* **Quick linking**: `astereon.search_link()` displays a label-sorted picker; `folder_search_link()` narrows to a folder, and `create_and_link()` spawns a new note then inserts its link immediately.
+* **Opening**: `open_pick()` and `open_folder_pick()` open notes and honor `open_pick_mode = "edit"|"split"|"vsplit"`.
+* **Media files**: `search_media_link()` inserts `[]()` or `![]()` based on extension (configurable list); `open_media_pick()` opens the file in Neovim for editing or preview.
+* **Daily notes**: `open_daily_today/next/prev` create or open files inside `daily.folder`. The default heading is generated in Spanish, and you can override the body with `daily.template(date, heading)`.
+* **Safe rename**: `rename_current_file()` prompts for the new name (keeps the extension) and updates every relative Markdown link in the vault, including reference-style links and `![]()` if `rename.include_images` is enabled.
+* **Metadata**: `update_note_id()` ensures a unique YAML `id` based on `ids.format` (defaults to `%Y%m%d%H%M%S`).
 
 ## 🍿 Snacks Integration
 
 When `snacks.enable = true` and `snacks.nvim` is installed, all selectors use `Snacks.picker`. You can tweak:
 
-- `snacks.preset`, `snacks.layout`, and `snacks.show_index_numbers` for the global behavior.
-- `display.snacks` to control preview/layout for note pickers (`search_link`, `open_pick`, etc.).
-- `media.snacks` to enable previews for media file pickers.
+* `snacks.preset`, `snacks.layout`, and `snacks.show_index_numbers` for the global behavior.
+* `display.snacks` to control preview/layout for note pickers (`search_link`, `open_pick`, etc.).
+* `media.snacks` to enable previews for media file pickers.
 
 If `snacks.enable = false`, the plugin falls back to `vim.ui.select`/`vim.ui.input` for maximum compatibility.
 
@@ -217,9 +222,14 @@ title: "%s"
 
 ### 🗂️ Notes on the Index
 
-- Paths are normalized and sorted; if you exceed `scan_limit`, the walk stops to avoid freezes.
-- `ignore_dirs` compares each segment (`.git`, `.obsidian`, `node_modules`, etc.) to keep the walk inside your vault.
-- `auto_refresh` only invalidates the cache when a Markdown file changes, keeping the feature lightweight.
-- Call `require("astereon").refresh_index()` whenever you import files externally and need a manual refresh.
+* Paths are normalized and sorted; if you exceed `scan_limit`, the walk stops to avoid freezes.
+* `ignore_dirs` compares each segment (`.git`, `.obsidian`, `node_modules`, etc.) to keep the walk inside your vault.
+* `auto_refresh` only invalidates the cache when a Markdown file changes, keeping the feature lightweight.
+* Astereon stores a persistent H1 titles cache per vault under `stdpath("cache")/astereon/` to avoid slow cold-start scans after reboot.
+* The cache is refreshed using file mtimes so edited note titles are not stale.
+* If you ever need to reset it manually, delete `stdpath("cache")/astereon/` or run `:AstereonRebuildTitlesCache`.
+* Call `require("astereon").refresh_index()` whenever you import files externally and need a manual refresh.
 
 > Final thoughts: Astereon’s workflow takes many ideas from the linking ergonomics of Obsidian MD. I was able to develop—and ultimately finish—the plugin thanks to Ainë (ChatGPT Codex).
+
+

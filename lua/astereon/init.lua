@@ -15,7 +15,9 @@ M.config = {
   label_mode = "auto",            -- "auto" | "title" | "basename"
   scan_limit = 5000,
   ignore_dirs = { ".git", ".obsidian", "node_modules" },
-
+  new_note = {
+    lowercase_filename = true, -- default: current behavior
+  },
   new_note_preferred_dirs = {},   -- e.g. { "aent", "atls" }
   new_note_template = nil,        -- function(title, slug, id) -> string
   open_new_note = false,          -- false | "edit" | "vsplit" | "split"
@@ -502,12 +504,22 @@ local function invalidate_index_for(path)
   Index.invalidate(root)
 end
 
-local function slugify(s)
-  s = (s or ""):lower()
-  s = s:gsub("[^%w]+","-")
-  s = s:gsub("-+","-")
-  s = s:gsub("^%-","")
-  s = s:gsub("%-$","")
+local function slugify(s, opts)
+  opts = opts or {}
+  local lowercase = opts.lowercase ~= false -- default true
+
+  s = (s or ""):gsub("%s+$", "")
+  s = s:gsub("%.md$", "") -- if user typed the extension, strip it
+
+  if lowercase then
+    s = s:lower()
+  end
+
+  s = s:gsub("[^%w]+", "-")
+  s = s:gsub("-+", "-")
+  s = s:gsub("^%-", "")
+  s = s:gsub("%-$", "")
+
   if s == "" then
     s = "note-" .. os.date("%H%M%S")
   end
@@ -1132,7 +1144,8 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
       if not title or title == "" then
         return
       end
-      local slug = slugify(title)
+      local ncfg = M.config.new_note or {}
+      local slug = slugify(title, { lowercase = ncfg.lowercase_filename })
       local id   = generate_note_id()
       local template = M.config.new_note_template or default_template
       local content = template(title, slug, id)

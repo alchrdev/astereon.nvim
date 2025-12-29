@@ -536,30 +536,72 @@ local function generate_note_id()
   return value
 end
 
+-- start
 local function daily_heading(date_str)
-  local day_names = { "domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado" }
-  local month_names = { "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre" }
+  local day_names = {
+    "domingo",
+    "lunes",
+    "martes",
+    "miércoles",
+    "jueves",
+    "viernes",
+    "sábado",
+  }
+
+  local month_names = {
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  }
+
   local year, month, day = date_str:match("^(%d+)%-(%d+)%-(%d+)$")
   if not year then
     return date_str
   end
-  local now = os.time()
-  local parts = {
+
+  local date_ts = os.time({
     year = tonumber(year),
     month = tonumber(month),
     day = tonumber(day),
-    hour = tonumber(os.date("%H", now)),
-    min = tonumber(os.date("%M", now)),
-    sec = tonumber(os.date("%S", now)),
-  }
-  local ts = os.time(parts)
-  local day_name = day_names[tonumber(os.date("%w", ts)) + 1]
-  local hour = tonumber(os.date("%I", now))
-  local minute = os.date("%M", now)
-  local second = os.date("%S", now)
-  local am_pm = os.date("%p", now)
-  return string.format("> 📓 %s, %02d de %s del año %s a las %02d:%s:%s %s",
-    day_name, tonumber(day) or 0, month_names[tonumber(month)] or month, year, hour, minute, second, am_pm)
+    hour = 12,
+    min = 0,
+    sec = 0,
+  })
+
+  local day_name = day_names[(tonumber(os.date("%w", date_ts)) or 0) + 1] or ""
+
+  local now = os.time()
+  local hour24 = tonumber(os.date("%H", now)) or 0
+  local minute = os.date("%M", now) or "00"
+  local second = os.date("%S", now) or "00"
+
+  local hour12 = hour24 % 12
+  if hour12 == 0 then
+    hour12 = 12
+  end
+
+  local am_pm = (hour24 < 12) and "AM" or "PM"
+
+  return string.format(
+    "> 📓 %s, %02d de %s del año %s a las %02d:%s:%s %s",
+    day_name,
+    tonumber(day) or 0,
+    month_names[tonumber(month)] or month,
+    year,
+    hour12,
+    minute,
+    second,
+    am_pm
+  )
 end
 
 local function daily_today()

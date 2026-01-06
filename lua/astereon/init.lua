@@ -1145,8 +1145,8 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
   root = norm(root)
   here = norm(here)
   local base_items = get_note_index(root)
-  local dirs = {}
-  local set = {}
+  local dirs = { "." }
+  local set = { ["."] = true }
   for _, item in ipairs(base_items) do
     local folder = item.folder or "."
     if not set[folder] then

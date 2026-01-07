@@ -74,6 +74,26 @@ M.config = {
     },
   },
 
+
+  -- Icons configuration
+  icons = {
+    enable = true,
+    default_icon = " ",  -- Generic file (NerdFont)
+    root_icon = " ",     -- Root icon (.)
+    custom = {
+      ["mocs"] = " ",
+      ["references"] = " ",
+    },
+   -- New icons by file type (for media)
+    files = {
+      image = " ",
+      video = " ",
+      audio = "󰝚 ",
+      pdf   = "󰈙 ",
+      default = " ",
+    },
+  },
+
   -- Rename behavior
   rename = {
     include_images = true,          -- update ![](...)
@@ -1065,23 +1085,88 @@ local function note_snacks_options(section)
   }
 end
 
+
+local function get_folder_icon(folder)
+  local icfg = M.config.icons or {}
+  if not icfg.enable then
+    return ""
+  end
+  
+  -- Normalizar root
+  if folder == "." or folder == "" or folder == nil then
+    return (icfg.root_icon or "󰚇 ") .. " "
+  end
+
+  -- Buscar custom
+  if icfg.custom and icfg.custom[folder] then
+    return icfg.custom[folder] .. " "
+  end
+
+  -- Default
+  return (icfg.default_icon or " ") .. " "
+end
+
+local function get_media_icon(path)
+  local icfg = M.config.icons or {}
+  if not icfg.enable then return "" end
+  
+  local fcfg = icfg.files or {
+    image = "🖼️ ",
+    video = "🎥 ",
+    audio = "🎵 ",
+    pdf   = "📄 ",
+    default = "📦 ",
+  }
+
+  local ext = path:match("^.+(%.[^%.]+)$")
+  if not ext then return (fcfg.default or "📦 ") .. " " end
+  ext = ext:lower()
+  
+  -- Images (use existing config list)
+  local mcfg = M.config.media or {}
+  for _, e in ipairs(mcfg.image_exts or {}) do
+    if e == ext then return (fcfg.image or "🖼️ ") .. " " end
+  end
+  
+  -- Audio
+  if vim.tbl_contains({".mp3", ".wav", ".flac", ".m4a", ".ogg"}, ext) then
+    return (fcfg.audio or "🎵 ") .. " "
+  end
+  
+  -- Video
+  if vim.tbl_contains({".mp4", ".mov", ".mkv", ".webm", ".avi"}, ext) then
+    return (fcfg.video or "🎥 ") .. " "
+  end
+  
+  -- PDF
+  if ext == ".pdf" then
+    return (fcfg.pdf or "📄 ") .. " "
+  end
+  
+  return (fcfg.default or "📦 ") .. " "
+end
+
 local function make_note_formatter(mode)
   return function(item)
     if type(item) ~= "table" then
       return tostring(item)
     end
+    
+    local icon = get_folder_icon(item.folder)
+    
     if mode == "label" then
-      return item.label
+      return icon .. item.label
     elseif mode == "filename" then
-      return item.stem
+      return icon .. item.stem
     elseif mode == "path" then
-      return item.rel_from_root
+      -- path usualmente ya es largo, el icono puede ser redundante, pero consistente
+      return icon .. item.rel_from_root
     elseif mode == "label+path" then
-      return string.format("%s  ·  %s", item.label, item.rel_from_root)
+      return string.format("%s%s  ·  %s", icon, item.label, item.rel_from_root)
     elseif mode == "filename+path" then
-      return string.format("%s  ·  %s", item.stem, item.rel_from_root)
+      return string.format("%s%s  ·  %s", icon, item.stem, item.rel_from_root)
     else
-      return item.label
+      return icon .. item.label
     end
   end
 end
@@ -1091,11 +1176,21 @@ local function make_media_formatter(mode)
     if type(item) ~= "table" then
       return tostring(item)
     end
+    
+    -- Cambio clave: usar icono del tipo de archivo en vez de la carpeta
+    local icon = get_media_icon(item.path)
+    
     if mode == "filename+path" then
-      return string.format("%s  ·  %s", item.filename, item.rel_from_root)
+      return string.format("%s%s  ·  %s", icon, item.filename, item.rel_from_root)
     else
-      return item.filename
+      return icon .. item.filename
     end
+  end
+end
+
+local function make_folder_formatter()
+  return function(folder)
+    return get_folder_icon(folder) .. folder
   end
 end
 
@@ -1178,7 +1273,10 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
     choices = { "." }
   end
 
-  select_ui(choices, { prompt = " Destination folder…" }, function(dir_rel)
+  select_ui(choices, { 
+    prompt = " Destination folder…",
+    format_item = make_folder_formatter(),
+  }, function(dir_rel)
     if not dir_rel then
       return
     end
@@ -1270,7 +1368,10 @@ function M.folder_search_link(opts)
   end
   table.sort(folders)
 
-  select_ui(folders, { prompt = " Folder for note link…" }, function(folder)
+  select_ui(folders, { 
+    prompt = " Folder for note link…",
+    format_item = make_folder_formatter(),
+  }, function(folder)
     if not folder then
       return
     end
@@ -1361,7 +1462,10 @@ function M.open_folder_pick()
   end
   table.sort(folders)
 
-  select_ui(folders, { prompt = " Folder for note…" }, function(folder)
+  select_ui(folders, { 
+    prompt = " Folder for note…",
+    format_item = make_folder_formatter(),
+  }, function(folder)
     if not folder then
       return
     end

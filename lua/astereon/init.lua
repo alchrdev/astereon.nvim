@@ -829,8 +829,8 @@ local function insert_text(text)
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_get_current_line()
   local before = line:sub(1, col)
-
--- Smart Spacing: If there is preceding text and it doesn't end in a space, add one.
+  
+  -- Smart Spacing: If there is preceding text and it doesn't end in a space, add one.
   if col > 0 and before:sub(-1) ~= " " then
     text = " " .. text
   end
@@ -888,9 +888,20 @@ local function snacks_select(items, opts, on_choice)
       item = item,
       idx = idx,
     }
+    -- [FIX]: Robust file detection + Fallback
+    -- Priority 1: Use get_file if provided (override).
+    -- Priority 2: Fallback to item.file if it exists (set in build_*_items).
     if get_file then
       entry.file = get_file(item)
+    elseif type(item) == "table" and item.file then
+      entry.file = item.file
     end
+    
+    -- [SAFETY]: Snacks throws error if 'file' is nil when expected. Ensure it's never nil if we suspect it's a file.
+    if entry.file == nil and type(item) == "table" and item.path then
+      entry.file = item.path
+    end
+
     if get_title then
       entry.title = get_title(item)
     end
@@ -995,6 +1006,7 @@ local function build_note_items(root, here, label_mode)
     local label = resolve_item_label(base.stem, base.title, label_mode)
     table.insert(items, {
       path = base.path,
+      file = base.path,
       stem = base.stem,
       title = base.title,
       label = label,
@@ -1025,6 +1037,7 @@ local function build_media_items(root, here)
     local folder = rel_from_root:match("(.+)/[^/]+$") or "."
     table.insert(items, {
       path = abs,
+      file = abs,
       filename = filename,
       rel_from_root = rel_from_root,
       folder = folder,
@@ -1042,9 +1055,9 @@ end
 local function media_snacks_options()
   local mcfg = M.config.media or {}
   local scfg = mcfg.snacks or {}
-  if not (scfg and scfg.preview) then
-    return nil
-  end
+  
+  -- [FIX]: Always return full config with get_file/get_title
+  -- This prevents "item has no file" error in Snacks
   return {
     preview = scfg.preview,
     layout = scfg.layout,
@@ -1063,20 +1076,29 @@ local function note_snacks_options(section)
   local display = M.config.display or {}
   local scfg = display.snacks
   if type(scfg) ~= "table" then
-    return nil
+    -- [FIX]: Fallback with required methods if config is missing
+    return {
+      preview = false,
+      get_file = function(item) return item.path end,
+      get_title = function(item) return item.label or item.stem end,
+    }
   end
   local base = scfg
   if type(scfg.default) == "table" then
     base = scfg.default
   end
   local opts = (section and type(scfg[section]) == "table" and scfg[section]) or base
-  if type(opts) ~= "table" or not opts.preview then
-    return nil
+  
+  -- [FIX]: Always return an object, never nil
+  if type(opts) ~= "table" then
+    opts = {}
   end
+
   local merged = opts
   if opts ~= base and base then
     merged = vim.tbl_deep_extend("force", {}, base, opts)
   end
+  
   return {
     preview = merged.preview,
     layout = merged.layout,
@@ -1100,7 +1122,7 @@ local function get_folder_icon(folder)
   
   -- Normalizar root
   if folder == "." or folder == "" or folder == nil then
-    return (icfg.root_icon or "󰚇 ") .. " "
+    return (icfg.root_icon or " ") .. " "
   end
 
   -- Buscar custom
@@ -1109,7 +1131,7 @@ local function get_folder_icon(folder)
   end
 
   -- Default
-  return (icfg.default_icon or " ") .. " "
+  return (icfg.default_icon or " ") .. " "
 end
 
 local function get_media_icon(path)
@@ -1117,39 +1139,39 @@ local function get_media_icon(path)
   if not icfg.enable then return "" end
   
   local fcfg = icfg.files or {
-    image = "🖼️ ",
-    video = "🎥 ",
-    audio = "🎵 ",
-    pdf   = "📄 ",
-    default = "📦 ",
+    image = " ",
+    video = " ",
+    audio = "󰝚 ",
+    pdf   = "󰈙 ",
+    default = " ",
   }
 
   local ext = path:match("^.+(%.[^%.]+)$")
-  if not ext then return (fcfg.default or "📦 ") .. " " end
+  if not ext then return (fcfg.default or " ") .. " " end
   ext = ext:lower()
   
   -- Images (use existing config list)
   local mcfg = M.config.media or {}
   for _, e in ipairs(mcfg.image_exts or {}) do
-    if e == ext then return (fcfg.image or "🖼️ ") .. " " end
+    if e == ext then return (fcfg.image or " ") .. " " end
   end
   
   -- Audio
   if vim.tbl_contains({".mp3", ".wav", ".flac", ".m4a", ".ogg"}, ext) then
-    return (fcfg.audio or "🎵 ") .. " "
+    return (fcfg.audio or "󰝚 ") .. " "
   end
   
   -- Video
   if vim.tbl_contains({".mp4", ".mov", ".mkv", ".webm", ".avi"}, ext) then
-    return (fcfg.video or "🎥 ") .. " "
+    return (fcfg.video or " ") .. " "
   end
   
   -- PDF
   if ext == ".pdf" then
-    return (fcfg.pdf or "📄 ") .. " "
+    return (fcfg.pdf or "󰈙 ") .. " "
   end
   
-  return (fcfg.default or "📦 ") .. " "
+  return (fcfg.default or " ") .. " "
 end
 
 local function make_note_formatter(mode)

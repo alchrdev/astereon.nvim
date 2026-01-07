@@ -829,6 +829,12 @@ local function insert_text(text)
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_get_current_line()
   local before = line:sub(1, col)
+
+-- Smart Spacing: If there is preceding text and it doesn't end in a space, add one.
+  if col > 0 and before:sub(-1) ~= " " then
+    text = " " .. text
+  end
+
   local after  = line:sub(col + 1)
   local new_line = before .. text .. after
   vim.api.nvim_set_current_line(new_line)

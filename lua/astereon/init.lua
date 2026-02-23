@@ -1628,6 +1628,10 @@ local function process_links_in_file(fpath, old_abs, new_abs, label_for_note)
   local normalized_old = old_rel:gsub("^%./","")
   local changed = false
 
+  local old_stem = vim.fn.fnamemodify(old_abs, ":t:r")
+  local old_lbl = filename_label(old_stem)
+  local has_label = label_for_note and label_for_note ~= ""
+
   for i, line in ipairs(lines) do
     local newline = line
 
@@ -1643,17 +1647,15 @@ local function process_links_in_file(fpath, old_abs, new_abs, label_for_note)
       local new_url = new_rel
       local new_text = text
 
-      if is_img then
-        if include_images and update_image_alt_mode ~= "keep" then
-          if label_for_note and label_for_note ~= "" then
-            new_text = label_for_note
-          end
-        end
-      else
-        if update_link_text_mode ~= "keep" then
-          if label_for_note and label_for_note ~= "" then
-            new_text = label_for_note
-          end
+      if has_label then
+        local mode = is_img and update_image_alt_mode or update_link_text_mode
+        local is_enabled = (mode ~= "keep") and (not is_img or include_images)
+
+        if is_enabled and mode == "auto" then
+          local is_default = (text == "" or text == old_stem or text == old_lbl)
+          new_text = is_default and label_for_note or text
+        elseif is_enabled then
+          new_text = label_for_note
         end
       end
 

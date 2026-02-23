@@ -74,7 +74,6 @@ M.config = {
     },
   },
 
-
   -- Icons configuration
   icons = {
     enable = true,
@@ -84,7 +83,7 @@ M.config = {
       ["mocs"] = " ",
       ["references"] = " ",
     },
-   -- New icons by file type (for media)
+   -- Icons by file type (for media)
     files = {
       image = " ",
       video = " ",
@@ -102,6 +101,7 @@ M.config = {
     update_image_alt = "auto",      -- "keep" | "auto"
     filename_label_style = "spaces",-- "slug" | "spaces" | "titlecase"
     auto_prefers = "title",         -- "title" | "filename" for "auto"
+    update_yaml_title = false,      -- disabled by default
   },
 
   -- Snacks integration
@@ -383,6 +383,23 @@ local function scan_note_index(root)
   if cache_ok then
     titles = cache.titles
     mtimes = cache.mtimes
+
+    -- Fast desync calculation
+    local changes_count = 0
+    for _, p in ipairs(files) do
+      local abs = norm(p)
+      local ms = ast_mtime_sec(abs)
+      if (ms and mtimes[abs] ~= ms) or (ms and mtimes[abs] == nil) then
+        changes_count = changes_count + 1
+      end
+    end
+
+    -- Safety valve: delegate massive loads to ripgrep
+    if changes_count > 10 then
+      cache_ok = false
+      titles = {}
+      mtimes = {}
+    end
   end
 
   local dirty = false
@@ -556,7 +573,6 @@ local function generate_note_id()
   return value
 end
 
--- start
 local function daily_heading(date_str)
   local day_names = {
     "domingo",
@@ -825,20 +841,49 @@ local function rewrite_yaml_id(bufnr)
   vim.notify("Astereon: updated YAML id -> " .. new_id, vim.log.levels.INFO)
 end
 
--- start
+local function update_yaml_title_in_buf(bufnr, new_title)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local yaml_start, yaml_end
+  for idx, line in ipairs(lines) do
+    if line:match("^%s*%-%-%-%s*$") then
+      if not yaml_start then
+        yaml_start = idx
+      else
+        yaml_end = idx
+        break
+      end
+    end
+  end
+
+  if yaml_start and yaml_end and yaml_end > yaml_start then
+    for i = yaml_start + 1, yaml_end - 1 do
+      if lines[i]:match("^%s*title%s*:") then
+        local indent = lines[i]:match("^(%s*)") or ""
+        -- Escape double quotes to avoid breaking YAML syntax
+        local safe_title = new_title:gsub('"', '\\"')
+        lines[i] = indent .. 'title: "' .. safe_title .. '"'
+        -- 0-indexed API: overwrite exactly the title line without touching the rest
+        vim.api.nvim_buf_set_lines(bufnr, i - 1, i, false, { lines[i] })
+        break
+      end
+    end
+  end
+end
+
 local function insert_text(text)
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_get_current_line()
   
-  -- Obtenemos el tamaño en bytes del caracter bajo el cursor (soporte UTF-8)
+  -- Get byte size of the character under the cursor (UTF-8 support)
   local char_under_cursor = vim.fn.matchstr(line:sub(col + 1), "^.")
   
-  -- Comportamiento tipo 'a' (append): insertamos DESPUÉS del caracter actual
+  -- Append behavior: insert AFTER the current character
   local insert_pos = col + #char_under_cursor
 
   local before = line:sub(1, insert_pos)
   
-  -- Smart Spacing: Si hay texto previo y no termina en espacio, lo añadimos
+  -- Smart spacing: Add space if needed
   if #before > 0 and before:sub(-1) ~= " " then
     text = " " .. text
   end
@@ -848,10 +893,9 @@ local function insert_text(text)
   
   vim.api.nvim_set_current_line(new_line)
   
-  -- Restauramos el cursor al final del texto insertado
+  -- Restore cursor to the end of the inserted text
   vim.api.nvim_win_set_cursor(0, { row, insert_pos + #text })
 end
--- end
 
 local function is_image_path(path)
   local mcfg = M.config.media or {}
@@ -1132,12 +1176,12 @@ local function get_folder_icon(folder)
     return ""
   end
   
-  -- Normalizar root
+  -- Normalize root
   if folder == "." or folder == "" or folder == nil then
     return (icfg.root_icon or " ") .. " "
   end
 
-  -- Buscar custom
+  -- Search custom
   if icfg.custom and icfg.custom[folder] then
     return icfg.custom[folder] .. " "
   end
@@ -1199,7 +1243,6 @@ local function make_note_formatter(mode)
     elseif mode == "filename" then
       return icon .. item.stem
     elseif mode == "path" then
-      -- path usualmente ya es largo, el icono puede ser redundante, pero consistente
       return icon .. item.rel_from_root
     elseif mode == "label+path" then
       return string.format("%s%s  ·  %s", icon, item.label, item.rel_from_root)
@@ -1217,7 +1260,7 @@ local function make_media_formatter(mode)
       return tostring(item)
     end
     
-    -- Cambio clave: usar icono del tipo de archivo en vez de la carpeta
+    -- Key change: use file type icon instead of folder icon
     local icon = get_media_icon(item.path)
     
     if mode == "filename+path" then
@@ -1609,7 +1652,7 @@ local function prompt_overwrite(target_name, cb)
   end)
 end
 
-local function process_links_in_file(fpath, old_abs, new_abs, label_for_note)
+local function process_links_in_file(fpath, old_abs, new_abs, label_for_note, old_title)
   local dir = norm(vim.fn.fnamemodify(fpath, ":p:h"))
   local old_rel = relpath(dir, old_abs)
   local new_rel = relpath(dir, new_abs)
@@ -1652,7 +1695,7 @@ local function process_links_in_file(fpath, old_abs, new_abs, label_for_note)
         local is_enabled = (mode ~= "keep") and (not is_img or include_images)
 
         if is_enabled and mode == "auto" then
-          local is_default = (text == "" or text == old_stem or text == old_lbl)
+          local is_default = (text == "" or text == old_stem or text == old_lbl or text == old_title)
           new_text = is_default and label_for_note or text
         elseif is_enabled then
           new_text = label_for_note
@@ -1710,6 +1753,12 @@ function M.rename_current_file()
     end
 
     local function proceed()
+      -- 1. Silently save any pending changes in Neovim
+      vim.cmd("silent! write")
+
+      -- Extract the old title BEFORE the file disappears from the disk
+      local old_title = read_first_title_fallback(old_abs)
+
       local ok, err = os.rename(old_abs, new_abs)
       if not ok then
         vim.notify("Astereon: rename failed: " .. tostring(err), vim.log.levels.ERROR)
@@ -1718,16 +1767,28 @@ function M.rename_current_file()
 
       if vim.api.nvim_buf_get_name(0) == current then
         vim.api.nvim_buf_set_name(0, new_abs)
+        
+        -- Strict frontmatter synchronization (if enabled)
+        local rcfg = M.config.rename or {}
+        if rcfg.update_yaml_title then
+          local new_h1 = read_first_title_fallback(new_abs)
+          if new_h1 and new_h1 ~= "" then
+            update_yaml_title_in_buf(0, new_h1)
+          end
+        end
+
+        -- 2. Force silent write so Neovim assumes control of the new disk inode
+        vim.cmd("silent! write!")
       end
 
-      local title = read_first_title_fallback(new_abs) -- Use fallback here as it's just 1 file
+      local title = read_first_title_fallback(new_abs)
       local stem = vim.fn.fnamemodify(new_abs, ":t:r")
       local label_for_note = compute_new_label(stem, title)
 
       local root = norm(vim.fn.getcwd())
       local files = list_markdown_files(root)
       for _, f in ipairs(files) do
-        process_links_in_file(f, old_abs, new_abs, label_for_note)
+        process_links_in_file(f, old_abs, new_abs, label_for_note, old_title)
       end
       Index.invalidate(root)
 

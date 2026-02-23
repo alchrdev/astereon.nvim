@@ -825,21 +825,33 @@ local function rewrite_yaml_id(bufnr)
   vim.notify("Astereon: updated YAML id -> " .. new_id, vim.log.levels.INFO)
 end
 
+-- start
 local function insert_text(text)
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_get_current_line()
-  local before = line:sub(1, col)
   
-  -- Smart Spacing: If there is preceding text and it doesn't end in a space, add one.
-  if col > 0 and before:sub(-1) ~= " " then
+  -- Obtenemos el tamaño en bytes del caracter bajo el cursor (soporte UTF-8)
+  local char_under_cursor = vim.fn.matchstr(line:sub(col + 1), "^.")
+  
+  -- Comportamiento tipo 'a' (append): insertamos DESPUÉS del caracter actual
+  local insert_pos = col + #char_under_cursor
+
+  local before = line:sub(1, insert_pos)
+  
+  -- Smart Spacing: Si hay texto previo y no termina en espacio, lo añadimos
+  if #before > 0 and before:sub(-1) ~= " " then
     text = " " .. text
   end
 
-  local after  = line:sub(col + 1)
+  local after  = line:sub(insert_pos + 1)
   local new_line = before .. text .. after
+  
   vim.api.nvim_set_current_line(new_line)
-  vim.api.nvim_win_set_cursor(0, { row, col + #text })
+  
+  -- Restauramos el cursor al final del texto insertado
+  vim.api.nvim_win_set_cursor(0, { row, insert_pos + #text })
 end
+-- end
 
 local function is_image_path(path)
   local mcfg = M.config.media or {}

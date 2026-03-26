@@ -296,7 +296,7 @@ local function walk_files(root, exts_with_dot)
     local ignore_dirs = M.config.ignore_dirs or { ".git", ".obsidian", "node_modules" }
     for _, d in ipairs(ignore_dirs) do
       table.insert(ignore_args, "-E")
-      table.insert(ignore_args, string.format("'%s'", d)) 
+      table.insert(ignore_args, d)
     end
     
     -- Build extension arguments (fd uses "md", not ".md")

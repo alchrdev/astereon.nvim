@@ -1949,6 +1949,31 @@ local function setup_auto_refresh()
   })
 end
 
+function M.delete_current_file()
+  local current = vim.api.nvim_buf_get_name(0)
+  if current == '' then
+    vim.notify('Astereon: current buffer has no file name', vim.log.levels.WARN)
+    return
+  end
+
+  local filename = vim.fn.fnamemodify(current, ':t')
+
+  select_ui({ 'No', 'Yes' }, { prompt = ('󰆴 Delete %q?'):format(filename) }, function(choice)
+    if choice == 'Yes' then
+      local root = norm(vim.fn.getcwd())
+      local ok, err = os.remove(current)
+
+      if ok then
+        vim.cmd('bdelete!')
+        Index.invalidate(root)
+        vim.notify('Astereon: file deleted', vim.log.levels.INFO)
+      else
+        vim.notify('Astereon: delete failed: ' .. tostring(err), vim.log.levels.ERROR)
+      end
+    end
+  end)
+end
+
 -- ========= Setup =========
 
 function M.setup(cfg)
@@ -1976,6 +2001,10 @@ function M.setup(cfg)
 
   vim.api.nvim_create_user_command('AstereonNewNote', function()
     M.create_note({ open_mode = 'edit' })
+  end, {})
+
+  vim.api.nvim_create_user_command('AstereonDelete', function()
+    M.delete_current_file()
   end, {})
 
   vim.api.nvim_create_user_command('AstereonRename', function()
@@ -2039,6 +2068,9 @@ function M.setup(cfg)
     map('n', '<leader>rf', function()
       M.rename_current_file()
     end, { desc = 'Astereon: rename note' })
+    map('n', '<leader>nd', function()
+      M.delete_current_file()
+    end, { desc = 'Astereon: delete note' })
     map('n', '<leader>uy', function()
       M.update_note_id()
     end, { desc = 'Astereon: regenerate YAML id' })

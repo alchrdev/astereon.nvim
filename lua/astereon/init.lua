@@ -1,7 +1,7 @@
 -- Astereon.nvim — Markdown links & media + Safe rename (updates references)
 -- Snacks integration (pickers) with fallback to vim.ui.select
 
-local Index = require("astereon.index")
+local Index = require('astereon.index')
 
 local M = {}
 M.state = {
@@ -12,25 +12,37 @@ M.state = {
 
 M.config = {
   -- Notes
-  label_mode = "auto",            -- "auto" | "title" | "basename"
+  label_mode = 'auto', -- "auto" | "title" | "basename"
   scan_limit = 5000,
-  ignore_dirs = { ".git", ".obsidian", "node_modules" },
+  ignore_dirs = { '.git', '.obsidian', 'node_modules' },
   new_note = {
     lowercase_filename = true, -- default: current behavior
   },
-  new_note_preferred_dirs = {},   -- e.g. { "aent", "atls" }
-  new_note_template = nil,        -- function(title, slug, id) -> string
-  open_new_note = false,          -- false | "edit" | "vsplit" | "split"
+  new_note_preferred_dirs = {}, -- e.g. { "aent", "atls" }
+  open_new_note = false, -- false | "edit" | "vsplit" | "split"
+
+  -- Plantillas Dinámicas Enrutadas
+  templates = {
+    default = function(title, slug, id)
+      return string.format(
+        "---\nid: %s\ntitle: '%s'\naliases: ['%s']\nstatus: 'draft'\n---\n\n# %s\n\n",
+        id,
+        title,
+        slug,
+        title
+      )
+    end,
+  },
 
   -- Open-only flows
-  open_pick_mode = "edit",        -- "edit" | "vsplit" | "split"
+  open_pick_mode = 'edit', -- "edit" | "vsplit" | "split"
 
   -- Display presets (notes)
   display = {
-    search_link        = "filename",     -- "label" | "filename" | "path" | "label+path" | "filename+path"
-    folder_search_link = "label+path",
-    open_pick          = "filename",
-    open_folder_pick   = "label+path",
+    search_link = 'filename', -- "label" | "filename" | "path" | "label+path" | "filename+path"
+    folder_search_link = 'label+path',
+    open_pick = 'filename',
+    open_folder_pick = 'label+path',
     snacks = {
       preview = false,
       preset = nil,
@@ -40,74 +52,87 @@ M.config = {
   },
 
   ids = {
-    format = "%Y%m%d%H%M%S",
+    format = '%Y%m%d%H%M%S',
   },
 
   daily = {
     enable = false,
-    folder = "apsn/dly",
-    template = nil,                -- function(date, heading): string
+    folder = 'apsn/dly',
+    template = nil, -- function(date, heading): string
     mappings = {
-      today = "<leader>ot",
-      next = "<leader>on",
-      prev = "<leader>op",
+      today = '<leader>ot',
+      next = '<leader>on',
+      prev = '<leader>op',
     },
   },
 
   -- Media
   media = {
     exts = {
-      ".png",".jpg",".jpeg",".webp",".gif",".svg",".bmp",".tiff",
-      ".mp3",".wav",".flac",".m4a",
-      ".mp4",".mov",".mkv",".webm",
-      ".pdf",
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.webp',
+      '.gif',
+      '.svg',
+      '.bmp',
+      '.tiff',
+      '.mp3',
+      '.wav',
+      '.flac',
+      '.m4a',
+      '.mp4',
+      '.mov',
+      '.mkv',
+      '.webm',
+      '.pdf',
     },
-    image_exts = { ".png",".jpg",".jpeg",".webp",".gif",".svg",".bmp",".tiff" },
-    display = "filename",         -- "filename" | "filename+path"
-    embed_images = true,          -- if true, images insert as ![]()
+    image_exts = { '.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.bmp', '.tiff' },
+    display = 'filename', -- "filename" | "filename+path"
+    embed_images = true, -- if true, images insert as ![]()
     prompt_alt_for_images = true, -- ask alt on image insert
     snacks = {
-      preview = false,            -- enable Snacks preview panel for media pickers
-      preset = nil,               -- override picker preset (fallbacks to global snacks preset)
-      layout = nil,               -- full layout table override
-      show_index_numbers = nil,   -- override numbering specifically for media pickers
+      preview = false, -- enable Snacks preview panel for media pickers
+      preset = nil, -- override picker preset (fallbacks to global snacks preset)
+      layout = nil, -- full layout table override
+      show_index_numbers = nil, -- override numbering specifically for media pickers
     },
   },
 
   -- Icons configuration
   icons = {
     enable = true,
-    default_icon = " ",  -- Generic file (NerdFont)
-    root_icon = " ",     -- Root icon (.)
+    default_icon = ' ', -- Generic file (NerdFont)
+    root_icon = ' ', -- Root icon (.)
     custom = {
-      ["mocs"] = " ",
-      ["references"] = " ",
+      ['mocs'] = ' ',
+      ['references'] = ' ',
     },
-   -- Icons by file type (for media)
+    -- Icons by file type (for media)
     files = {
-      image = " ",
-      video = " ",
-      audio = "󰝚 ",
-      pdf   = "󰈙 ",
-      default = " ",
+      image = ' ',
+      video = ' ',
+      audio = '󰝚 ',
+      pdf = '󰈙 ',
+      default = ' ',
     },
   },
 
   -- Rename behavior
   rename = {
-    include_images = true,          -- update ![](...)
-    update_reference_style = true,  -- update "[ref]: url"
-    update_link_text = "auto",      -- "keep" | "filename" | "title" | "auto"
-    update_image_alt = "auto",      -- "keep" | "auto"
-    filename_label_style = "spaces",-- "slug" | "spaces" | "titlecase"
-    auto_prefers = "title",         -- "title" | "filename" for "auto"
-    update_yaml_title = false,      -- disabled by default
+    include_images = true, -- update ![](...)
+    update_reference_style = true, -- update "[ref]: url"
+    update_link_text = 'auto', -- "keep" | "filename" | "title" | "auto"
+    update_image_alt = 'auto', -- "keep" | "auto"
+    filename_label_style = 'spaces', -- "slug" | "spaces" | "titlecase"
+    auto_prefers = 'title', -- "title" | "filename" for "auto"
+    update_yaml_title = false, -- disabled by default
   },
 
   -- Snacks integration
   snacks = {
     enable = true,
-    preset = "vscode",
+    preset = 'vscode',
     show_index_numbers = true,
   },
 
@@ -118,9 +143,9 @@ M.config = {
   auto_refresh = {
     enable = true,
     events = {
-      "BufWritePost",
-      "BufFilePost",
-      "DirChanged",
+      'BufWritePost',
+      'BufFilePost',
+      'DirChanged',
     },
   },
 }
@@ -129,8 +154,8 @@ M.config = {
 
 local function split_parts(path)
   local t = {}
-  for seg in (path or ""):gsub("\\","/"):gmatch("[^/]+") do
-    if seg ~= "" then
+  for seg in (path or ''):gsub('\\', '/'):gmatch('[^/]+') do
+    if seg ~= '' then
       table.insert(t, seg)
     end
   end
@@ -138,28 +163,28 @@ local function split_parts(path)
 end
 
 local function norm(path)
-  if not path or path == "" then
-    return ""
+  if not path or path == '' then
+    return ''
   end
-  path = path:gsub("\\","/")
-  path = vim.fn.fnamemodify(path, ":p")
-  path = path:gsub("/+$","")
+  path = path:gsub('\\', '/')
+  path = vim.fn.fnamemodify(path, ':p')
+  path = path:gsub('/+$', '')
   return path
 end
 
 local function buf_dir()
   local name = vim.api.nvim_buf_get_name(0)
-  if name == "" then
+  if name == '' then
     return norm(vim.fn.getcwd())
   end
-  return norm(vim.fn.fnamemodify(name, ":p:h"))
+  return norm(vim.fn.fnamemodify(name, ':p:h'))
 end
 
 local function relpath(from, to)
   from = norm(from)
-  to   = norm(to)
+  to = norm(to)
   local from_parts = split_parts(from)
-  local to_parts   = split_parts(to)
+  local to_parts = split_parts(to)
   local len = math.min(#from_parts, #to_parts)
   local idx = 1
   while idx <= len and from_parts[idx] == to_parts[idx] do
@@ -167,14 +192,14 @@ local function relpath(from, to)
   end
   local rel_parts = {}
   for i = idx, #from_parts do
-    table.insert(rel_parts, "..")
+    table.insert(rel_parts, '..')
   end
   for i = idx, #to_parts do
     table.insert(rel_parts, to_parts[i])
   end
-  local rel = table.concat(rel_parts, "/")
-  if rel == "" then
-    return "."
+  local rel = table.concat(rel_parts, '/')
+  if rel == '' then
+    return '.'
   end
   return rel
 end
@@ -192,32 +217,40 @@ local function is_ignored_fallback(path)
   for _, d in ipairs(ignore) do
     set[d] = true
   end
-  local parts = split_parts(path or "")
+  local parts = split_parts(path or '')
   for _, seg in ipairs(parts) do
-    if set[seg] then return true end
+    if set[seg] then
+      return true
+    end
   end
   return false
 end
 
 -- Fallback: Check extension (Only used if 'fd' is missing)
 local function has_ext_fallback(name, exts)
-  if not exts then return true end
-  local lower = string.lower(name or "")
+  if not exts then
+    return true
+  end
+  local lower = string.lower(name or '')
   for _, e in ipairs(exts) do
-    if lower:sub(-#e) == e then return true end
+    if lower:sub(-#e) == e then
+      return true
+    end
   end
   return false
 end
 
 -- Fallback: Read title from disk (Only used if 'rg' is missing)
 local function read_first_title_fallback(path)
-  local f = io.open(path, "r")
-  if not f then return nil end
+  local f = io.open(path, 'r')
+  if not f then
+    return nil
+  end
   for line in f:lines() do
-    local t = line:match("^%s*#%s+(.+)")
+    local t = line:match('^%s*#%s+(.+)')
     if t then
-      t = t:gsub("%s+#%s*$","")
-      t = t:gsub("%s+$","")
+      t = t:gsub('%s+#%s*$', '')
+      t = t:gsub('%s+$', '')
       f:close()
       return t
     end
@@ -231,45 +264,49 @@ end
 local AST_CACHE_VERSION = 1
 
 local function ast_cache_dir()
-  return vim.fn.stdpath("cache") .. "/astereon"
+  return vim.fn.stdpath('cache') .. '/astereon'
 end
 
 local function ast_cache_key(root)
   local ok, hash = pcall(vim.fn.sha256, root)
-  if ok and type(hash) == "string" and #hash >= 12 then
+  if ok and type(hash) == 'string' and #hash >= 12 then
     return hash:sub(1, 12)
   end
   -- Fallback: sanitize (avoid path separators)
-  local key = (root or ""):gsub("[/\\:]", "_"):gsub("%s+", "_")
-  if key == "" then key = "cwd" end
+  local key = (root or ''):gsub('[/\\:]', '_'):gsub('%s+', '_')
+  if key == '' then
+    key = 'cwd'
+  end
   return key:sub(1, 80)
 end
 
 local function ast_cache_path_for_root(root)
-  return ast_cache_dir() .. "/titles_" .. ast_cache_key(root) .. ".json"
+  return ast_cache_dir() .. '/titles_' .. ast_cache_key(root) .. '.json'
 end
 
 local function ast_read_json(path)
   local ok, lines = pcall(vim.fn.readfile, path)
-  if not ok or type(lines) ~= "table" or #lines == 0 then
+  if not ok or type(lines) ~= 'table' or #lines == 0 then
     return nil
   end
-  local text = table.concat(lines, "\n")
+  local text = table.concat(lines, '\n')
   local ok2, obj = pcall(vim.fn.json_decode, text)
-  if ok2 and type(obj) == "table" then
+  if ok2 and type(obj) == 'table' then
     return obj
   end
   return nil
 end
 
 local function ast_write_json_atomic(path, obj)
-  local dir = vim.fn.fnamemodify(path, ":h")
-  pcall(vim.fn.mkdir, dir, "p")
+  local dir = vim.fn.fnamemodify(path, ':h')
+  pcall(vim.fn.mkdir, dir, 'p')
   local json = vim.fn.json_encode(obj)
 
-  local tmp = path .. ".tmp"
+  local tmp = path .. '.tmp'
   local ok = pcall(vim.fn.writefile, { json }, tmp)
-  if not ok then return end
+  if not ok then
+    return
+  end
   pcall(os.rename, tmp, path)
 end
 
@@ -278,7 +315,7 @@ local function ast_mtime_sec(path)
   if not st or not st.mtime then
     return nil
   end
-  if type(st.mtime) == "table" then
+  if type(st.mtime) == 'table' then
     return st.mtime.sec
   end
   return st.mtime
@@ -289,23 +326,23 @@ end
 local function walk_files(root, exts_with_dot)
   root = norm(root)
   local results = {}
-  
-  if has_executable("fd") then
+
+  if has_executable('fd') then
     -- Build arguments to ignore directories
     local ignore_args = {}
-    local ignore_dirs = M.config.ignore_dirs or { ".git", ".obsidian", "node_modules" }
+    local ignore_dirs = M.config.ignore_dirs or { '.git', '.obsidian', 'node_modules' }
     for _, d in ipairs(ignore_dirs) do
-      table.insert(ignore_args, "-E")
+      table.insert(ignore_args, '-E')
       table.insert(ignore_args, d)
     end
-    
+
     -- Build extension arguments (fd uses "md", not ".md")
     local ext_args = {}
     if exts_with_dot then
       for _, e in ipairs(exts_with_dot) do
-        local clean = e:gsub("^%.", "") -- remove leading dot
-        if clean ~= "" then
-          table.insert(ext_args, "-e")
+        local clean = e:gsub('^%.', '') -- remove leading dot
+        if clean ~= '' then
+          table.insert(ext_args, '-e')
           table.insert(ext_args, clean)
         end
       end
@@ -314,29 +351,40 @@ local function walk_files(root, exts_with_dot)
     -- Execute fd (fast)
     -- --absolute-path ensures compatibility with norm()
     -- --color never prevents ANSI garbage
-    local cmd = string.format("fd . '%s' --type f --absolute-path --color never %s %s", 
-      root, table.concat(ext_args, " "), table.concat(ignore_args, " "))
-    
+    local cmd = string.format(
+      "fd . '%s' --type f --absolute-path --color never --no-ignore %s %s",
+      root,
+      table.concat(ext_args, ' '),
+      table.concat(ignore_args, ' ')
+    )
+
     results = vim.fn.systemlist(cmd)
-    
+
     -- Normalize results to ensure consistency
     for i, path in ipairs(results) do
       results[i] = norm(path)
     end
-    
   else
     -- SLOW MODE (Pure Lua)
     local limit = M.config.scan_limit or 5000
     local function scan(dir)
-      if #results >= limit then return end
+      if #results >= limit then
+        return
+      end
       local fd = vim.loop.fs_scandir(dir)
-      if not fd then return end
+      if not fd then
+        return
+      end
       while true do
         local name, t = vim.loop.fs_scandir_next(fd)
-        if not name then break end
-        local full = dir .. "/" .. name
-        if t == "directory" then
-          if not is_ignored_fallback(full) then scan(full) end
+        if not name then
+          break
+        end
+        local full = dir .. '/' .. name
+        if t == 'directory' then
+          if not is_ignored_fallback(full) then
+            scan(full)
+          end
         else
           if has_ext_fallback(name, exts_with_dot) then
             table.insert(results, norm(full))
@@ -347,22 +395,22 @@ local function walk_files(root, exts_with_dot)
     scan(root)
     table.sort(results)
   end
-  
+
   return results
 end
 
 local function list_markdown_files(root)
-  return walk_files(root, { ".md" })
+  return walk_files(root, { '.md' })
 end
 
 local function is_markdown(path)
-  return string.lower(path or ""):sub(-3) == ".md"
+  return string.lower(path or ''):sub(-3) == '.md'
 end
 
 -- INDEX SCANNER (Optimized with rg)
 local function scan_note_index(root)
   root = norm(root)
-  
+
   -- 1. Get file list (Already optimized by walk_files above)
   local files = list_markdown_files(root)
 
@@ -372,13 +420,13 @@ local function scan_note_index(root)
 
   local titles = {}
   local mtimes = {}
-  local use_rg = has_executable("rg")
+  local use_rg = has_executable('rg')
 
   local cache_ok = cache
     and cache.version == AST_CACHE_VERSION
     and cache.root == root
-    and type(cache.titles) == "table"
-    and type(cache.mtimes) == "table"
+    and type(cache.titles) == 'table'
+    and type(cache.mtimes) == 'table'
 
   if cache_ok then
     titles = cache.titles
@@ -407,13 +455,16 @@ local function scan_note_index(root)
   -- If cache is missing/invalid, build once (prefer rg for speed)
   if not cache_ok then
     if use_rg and #files > 0 then
-      local cmd = string.format("rg -m 1 --no-heading --with-filename --line-number \"^#\\s+(.+)\" '%s' -g \"*.md\"", root)
+      local cmd = string.format(
+        'rg -m 1 --no-heading --with-filename --line-number --no-ignore "^#\\s+(.+)" \'%s\' -g "*.md"',
+        root
+      )
       local grep_results = vim.fn.systemlist(cmd)
       for _, line in ipairs(grep_results) do
-        local path, content = line:match("^(.*):%d+:#%s+(.*)$")
+        local path, content = line:match('^(.*):%d+:#%s+(.*)$')
         if path and content then
           path = norm(path)
-          content = content:gsub("%s+$", "")
+          content = content:gsub('%s+$', '')
           titles[path] = content
         end
       end
@@ -422,12 +473,14 @@ local function scan_note_index(root)
     for _, p in ipairs(files) do
       local abs = norm(p)
       local ms = ast_mtime_sec(abs)
-      if ms then mtimes[abs] = ms end
+      if ms then
+        mtimes[abs] = ms
+      end
 
       -- Store empty string for "no title" to avoid re-reading every time
       if titles[abs] == nil then
         local t = (not use_rg) and read_first_title_fallback(abs) or nil
-        titles[abs] = t or ""
+        titles[abs] = t or ''
       end
     end
 
@@ -443,13 +496,13 @@ local function scan_note_index(root)
     local ms = ast_mtime_sec(abs)
     if ms and mtimes[abs] ~= ms then
       local t = read_first_title_fallback(abs)
-      titles[abs] = t or ""
+      titles[abs] = t or ''
       mtimes[abs] = ms
       dirty = true
     elseif ms and mtimes[abs] == nil then
       -- New file with no previous mtime entry
       local t = read_first_title_fallback(abs)
-      titles[abs] = t or ""
+      titles[abs] = t or ''
       mtimes[abs] = ms
       dirty = true
     end
@@ -473,28 +526,32 @@ local function scan_note_index(root)
     })
   end
 
--- 3. Merge data in memory
+  -- 3. Merge data in memory
   local base = {}
   local limit = M.config.scan_limit or 5000
   local count = 0
 
   for _, path in ipairs(files) do
-    if count >= limit then break end
+    if count >= limit then
+      break
+    end
     local abs = norm(path)
-    
+
     -- Hybrid strategy:
     -- Try to get title from ripgrep map.
     -- If missing (e.g., file has no H1), title is nil.
     -- If rg is not installed, use slow fallback.
     local title = titles[abs]
-    if title == "" then title = nil end
+    if title == '' then
+      title = nil
+    end
     if not title and not use_rg then
       title = read_first_title_fallback(abs)
     end
 
-    local stem = vim.fn.fnamemodify(abs, ":t:r")
+    local stem = vim.fn.fnamemodify(abs, ':t:r')
     local rel_from_root = relpath(root, abs)
-    local folder = rel_from_root:match("(.+)/[^/]+$") or "."
+    local folder = rel_from_root:match('(.+)/[^/]+$') or '.'
 
     table.insert(base, {
       path = abs,
@@ -530,12 +587,12 @@ end
 
 local function invalidate_index_for(path)
   path = norm(path)
-  if path == "" then
+  if path == '' then
     return
   end
   local root = norm(vim.fn.getcwd())
   local rel = relpath(root, path)
-  if rel:sub(1,1) == "." or rel:find("..", 1, true) then
+  if rel:sub(1, 1) == '.' or rel:find('..', 1, true) then
     return
   end
   Index.invalidate(root)
@@ -545,29 +602,29 @@ local function slugify(s, opts)
   opts = opts or {}
   local lowercase = opts.lowercase ~= false -- default true
 
-  s = (s or ""):gsub("%s+$", "")
-  s = s:gsub("%.md$", "") -- if user typed the extension, strip it
+  s = (s or ''):gsub('%s+$', '')
+  s = s:gsub('%.md$', '') -- if user typed the extension, strip it
 
   if lowercase then
     s = s:lower()
   end
 
-  s = s:gsub("[^%w]+", "-")
-  s = s:gsub("-+", "-")
-  s = s:gsub("^%-", "")
-  s = s:gsub("%-$", "")
+  s = s:gsub('[^%w]+', '-')
+  s = s:gsub('-+', '-')
+  s = s:gsub('^%-', '')
+  s = s:gsub('%-$', '')
 
-  if s == "" then
-    s = "note-" .. os.date("%H%M%S")
+  if s == '' then
+    s = 'note-' .. os.date('%H%M%S')
   end
   return s
 end
 
 local function generate_note_id()
   local icfg = M.config.ids or {}
-  local fmt = icfg.format or "%Y%m%d%H%M%S"
+  local fmt = icfg.format or '%Y%m%d%H%M%S'
   local ok, value = pcall(os.date, fmt)
-  if not ok or not value or value == "" then
+  if not ok or not value or value == '' then
     value = tostring(os.time())
   end
   return value
@@ -575,31 +632,31 @@ end
 
 local function daily_heading(date_str)
   local day_names = {
-    "domingo",
-    "lunes",
-    "martes",
-    "miércoles",
-    "jueves",
-    "viernes",
-    "sábado",
+    'domingo',
+    'lunes',
+    'martes',
+    'miércoles',
+    'jueves',
+    'viernes',
+    'sábado',
   }
 
   local month_names = {
-    "enero",
-    "febrero",
-    "marzo",
-    "abril",
-    "mayo",
-    "junio",
-    "julio",
-    "agosto",
-    "septiembre",
-    "octubre",
-    "noviembre",
-    "diciembre",
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'septiembre',
+    'octubre',
+    'noviembre',
+    'diciembre',
   }
 
-  local year, month, day = date_str:match("^(%d+)%-(%d+)%-(%d+)$")
+  local year, month, day = date_str:match('^(%d+)%-(%d+)%-(%d+)$')
   if not year then
     return date_str
   end
@@ -613,22 +670,22 @@ local function daily_heading(date_str)
     sec = 0,
   })
 
-  local day_name = day_names[(tonumber(os.date("%w", date_ts)) or 0) + 1] or ""
+  local day_name = day_names[(tonumber(os.date('%w', date_ts)) or 0) + 1] or ''
 
   local now = os.time()
-  local hour24 = tonumber(os.date("%H", now)) or 0
-  local minute = os.date("%M", now) or "00"
-  local second = os.date("%S", now) or "00"
+  local hour24 = tonumber(os.date('%H', now)) or 0
+  local minute = os.date('%M', now) or '00'
+  local second = os.date('%S', now) or '00'
 
   local hour12 = hour24 % 12
   if hour12 == 0 then
     hour12 = 12
   end
 
-  local am_pm = (hour24 < 12) and "AM" or "PM"
+  local am_pm = (hour24 < 12) and 'AM' or 'PM'
 
   return string.format(
-    "> 📓 %s, %02d de %s del año %s a las %02d:%s:%s %s",
+    '> 📓 %s, %02d de %s del año %s a las %02d:%s:%s %s',
     day_name,
     tonumber(day) or 0,
     month_names[tonumber(month)] or month,
@@ -641,11 +698,11 @@ local function daily_heading(date_str)
 end
 
 local function daily_today()
-  return os.date("%Y-%m-%d")
+  return os.date('%Y-%m-%d')
 end
 
 local function daily_parse(date_str)
-  local year, month, day = date_str:match("^(%d+)%-(%d+)%-(%d+)$")
+  local year, month, day = date_str:match('^(%d+)%-(%d+)%-(%d+)$')
   if not year then
     return nil
   end
@@ -658,56 +715,56 @@ local function daily_relative(date_str, offset)
     return daily_today()
   end
   local ts = os.time(parsed) + (offset * 24 * 60 * 60)
-  return os.date("%Y-%m-%d", ts)
+  return os.date('%Y-%m-%d', ts)
 end
 
 local function default_daily_template(date, heading)
   return table.concat({
-    "---",
-    "mood:",
-    "location:",
-    "weather:",
-    "bed_time:",
-    "sleep_hours:",
-    "nap_hours:",
-    "get_up:",
-    "flow_state:",
-    "---",
-    "",
+    '---',
+    'mood:',
+    'location:',
+    'weather:',
+    'bed_time:',
+    'sleep_hours:',
+    'nap_hours:',
+    'get_up:',
+    'flow_state:',
+    '---',
+    '',
     heading,
-    "",
-  }, "\n")
+    '',
+  }, '\n')
 end
 
 local function daily_folder_path()
   local dcfg = M.config.daily or {}
   local folder = dcfg.folder
-  if not folder or folder == "" then
+  if not folder or folder == '' then
     return nil
   end
   local root = norm(vim.fn.getcwd())
-  return norm(root .. "/" .. folder)
+  return norm(root .. '/' .. folder)
 end
 
 local function daily_open(date)
   local dcfg = M.config.daily or {}
   local folder = daily_folder_path()
   if not folder then
-    vim.notify("Astereon: daily.folder is not configured", vim.log.levels.WARN)
+    vim.notify('Astereon: daily.folder is not configured', vim.log.levels.WARN)
     return
   end
-  vim.fn.mkdir(folder, "p")
-  local path = norm(folder .. "/" .. date .. ".md")
+  vim.fn.mkdir(folder, 'p')
+  local path = norm(folder .. '/' .. date .. '.md')
   local exists = vim.loop.fs_stat(path) ~= nil
   if not exists then
     local template = dcfg.template or default_daily_template
     local ok, content = pcall(template, date, daily_heading(date))
-    if not ok or type(content) ~= "string" then
+    if not ok or type(content) ~= 'string' then
       content = default_daily_template(date, daily_heading(date))
     end
-    local f = io.open(path, "w")
+    local f = io.open(path, 'w')
     if not f then
-      vim.notify("Astereon: unable to create daily note at " .. path, vim.log.levels.ERROR)
+      vim.notify('Astereon: unable to create daily note at ' .. path, vim.log.levels.ERROR)
       return
     end
     f:write(content)
@@ -716,7 +773,7 @@ local function daily_open(date)
   vim.cmd.edit(vim.fn.fnameescape(path))
   M.state.daily.current = date
   if not exists then
-    vim.notify("Astereon: daily note created for " .. date, vim.log.levels.INFO)
+    vim.notify('Astereon: daily note created for ' .. date, vim.log.levels.INFO)
   end
 end
 
@@ -728,40 +785,40 @@ end
 
 local function titlecase(str)
   local out = {}
-  for word in (str or ""):gmatch("%S+") do
-    local first = word:sub(1,1):upper()
+  for word in (str or ''):gmatch('%S+') do
+    local first = word:sub(1, 1):upper()
     local rest = word:sub(2)
     table.insert(out, first .. rest)
   end
-  return table.concat(out, " ")
+  return table.concat(out, ' ')
 end
 
 local function filename_label(stem)
   local cfg = M.config.rename or {}
-  local style = cfg.filename_label_style or "spaces"
-  if style == "slug" then
+  local style = cfg.filename_label_style or 'spaces'
+  if style == 'slug' then
     return stem
   end
-  local s = (stem or ""):gsub("[-_]+"," ")
-  if style == "titlecase" then
+  local s = (stem or ''):gsub('[-_]+', ' ')
+  if style == 'titlecase' then
     s = titlecase(s)
   end
   return s
 end
 
 local function resolve_item_label(stem, title, label_mode)
-  local mode = label_mode or M.config.label_mode or "auto"
-  local title_value = (title ~= nil and title ~= "") and title or nil
-  if mode == "title" then
+  local mode = label_mode or M.config.label_mode or 'auto'
+  local title_value = (title ~= nil and title ~= '') and title or nil
+  if mode == 'title' then
     return title_value or filename_label(stem)
-  elseif mode == "basename" then
+  elseif mode == 'basename' then
     return filename_label(stem)
   end
 
-  local prefer = (M.config.rename and M.config.rename.auto_prefers) or "title"
-  if prefer == "title" and title_value then
+  local prefer = (M.config.rename and M.config.rename.auto_prefers) or 'title'
+  if prefer == 'title' and title_value then
     return title_value
-  elseif prefer == "filename" then
+  elseif prefer == 'filename' then
     return filename_label(stem)
   end
   return title_value or filename_label(stem)
@@ -769,22 +826,22 @@ end
 
 local function compute_new_label(stem, title)
   local rcfg = M.config.rename or {}
-  local mode = rcfg.update_link_text or "auto"
-  local prefer = rcfg.auto_prefers or "title"
+  local mode = rcfg.update_link_text or 'auto'
+  local prefer = rcfg.auto_prefers or 'title'
 
-  local filename_lbl = filename_label(stem or "")
-  local title_lbl = title ~= nil and title ~= "" and title or nil
+  local filename_lbl = filename_label(stem or '')
+  local title_lbl = title ~= nil and title ~= '' and title or nil
 
-  if mode == "keep" then
+  if mode == 'keep' then
     return nil
-  elseif mode == "filename" then
+  elseif mode == 'filename' then
     return filename_lbl
-  elseif mode == "title" then
+  elseif mode == 'title' then
     return title_lbl or filename_lbl
   else -- auto
-    if prefer == "title" and title_lbl then
+    if prefer == 'title' and title_lbl then
       return title_lbl
-    elseif prefer == "filename" then
+    elseif prefer == 'filename' then
       return filename_lbl
     end
     return title_lbl or filename_lbl
@@ -792,7 +849,8 @@ local function compute_new_label(stem, title)
 end
 
 local function default_template(title, slug, id)
-  return string.format([[---
+  return string.format(
+    [[---
 id: %s
 title: '%s'
 aliases: ['%s']
@@ -801,7 +859,12 @@ status: 'draft'
 
 # %s
 
-]], id, title, slug, title)
+]],
+    id,
+    title,
+    slug,
+    title
+  )
 end
 
 local function rewrite_yaml_id(bufnr)
@@ -810,7 +873,7 @@ local function rewrite_yaml_id(bufnr)
   local new_id = generate_note_id()
   local yaml_start, yaml_end
   for idx, line in ipairs(lines) do
-    if line:match("^%s*%-%-%-%s*$") then
+    if line:match('^%s*%-%-%-%s*$') then
       if not yaml_start then
         yaml_start = idx
       else
@@ -822,23 +885,23 @@ local function rewrite_yaml_id(bufnr)
   if yaml_start and yaml_end and yaml_end > yaml_start then
     local replaced = false
     for i = yaml_start + 1, yaml_end - 1 do
-      if lines[i]:match("^%s*id%s*:") then
-        local indent = lines[i]:match("^(%s*)") or ""
-        lines[i] = indent .. "id: " .. new_id
+      if lines[i]:match('^%s*id%s*:') then
+        local indent = lines[i]:match('^(%s*)') or ''
+        lines[i] = indent .. 'id: ' .. new_id
         replaced = true
         break
       end
     end
     if not replaced then
-      table.insert(lines, yaml_start + 1, "id: " .. new_id)
+      table.insert(lines, yaml_start + 1, 'id: ' .. new_id)
     end
   else
-    table.insert(lines, 1, "---")
-    table.insert(lines, 2, "id: " .. new_id)
-    table.insert(lines, 3, "---")
+    table.insert(lines, 1, '---')
+    table.insert(lines, 2, 'id: ' .. new_id)
+    table.insert(lines, 3, '---')
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-  vim.notify("Astereon: updated YAML id -> " .. new_id, vim.log.levels.INFO)
+  vim.notify('Astereon: updated YAML id -> ' .. new_id, vim.log.levels.INFO)
 end
 
 local function update_yaml_title_in_buf(bufnr, new_title)
@@ -846,7 +909,7 @@ local function update_yaml_title_in_buf(bufnr, new_title)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local yaml_start, yaml_end
   for idx, line in ipairs(lines) do
-    if line:match("^%s*%-%-%-%s*$") then
+    if line:match('^%s*%-%-%-%s*$') then
       if not yaml_start then
         yaml_start = idx
       else
@@ -858,8 +921,8 @@ local function update_yaml_title_in_buf(bufnr, new_title)
 
   if yaml_start and yaml_end and yaml_end > yaml_start then
     for i = yaml_start + 1, yaml_end - 1 do
-      if lines[i]:match("^%s*title%s*:") then
-        local indent = lines[i]:match("^(%s*)") or ""
+      if lines[i]:match('^%s*title%s*:') then
+        local indent = lines[i]:match('^(%s*)') or ''
         -- Escape double quotes to avoid breaking YAML syntax
         local safe_title = new_title:gsub('"', '\\"')
         lines[i] = indent .. 'title: "' .. safe_title .. '"'
@@ -874,25 +937,25 @@ end
 local function insert_text(text)
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_get_current_line()
-  
+
   -- Get byte size of the character under the cursor (UTF-8 support)
-  local char_under_cursor = vim.fn.matchstr(line:sub(col + 1), "^.")
-  
+  local char_under_cursor = vim.fn.matchstr(line:sub(col + 1), '^.')
+
   -- Append behavior: insert AFTER the current character
   local insert_pos = col + #char_under_cursor
 
   local before = line:sub(1, insert_pos)
-  
+
   -- Smart spacing: Add space if needed
-  if #before > 0 and before:sub(-1) ~= " " then
-    text = " " .. text
+  if #before > 0 and before:sub(-1) ~= ' ' then
+    text = ' ' .. text
   end
 
-  local after  = line:sub(insert_pos + 1)
+  local after = line:sub(insert_pos + 1)
   local new_line = before .. text .. after
-  
+
   vim.api.nvim_set_current_line(new_line)
-  
+
   -- Restore cursor to the end of the inserted text
   vim.api.nvim_win_set_cursor(0, { row, insert_pos + #text })
 end
@@ -900,7 +963,7 @@ end
 local function is_image_path(path)
   local mcfg = M.config.media or {}
   local exts = mcfg.image_exts or {}
-  local lower = string.lower(path or "")
+  local lower = string.lower(path or '')
   for _, e in ipairs(exts) do
     if lower:sub(-#e) == e then
       return true
@@ -916,12 +979,12 @@ local function snacks_ok()
   if not scfg.enable then
     return false
   end
-  local ok, _ = pcall(require, "snacks")
+  local ok, _ = pcall(require, 'snacks')
   return ok
 end
 
 local function snacks_select(items, opts, on_choice)
-  assert(type(on_choice) == "function", "on_choice must be a function")
+  assert(type(on_choice) == 'function', 'on_choice must be a function')
   opts = opts or {}
 
   local scfg = M.config.snacks or {}
@@ -937,7 +1000,7 @@ local function snacks_select(items, opts, on_choice)
   local finder_items = {}
   for idx, item in ipairs(items) do
     local text = format_item(item)
-    local prefix = show_numbers and (idx .. " ") or ""
+    local prefix = show_numbers and (idx .. ' ') or ''
     local entry = {
       formatted = text,
       text = prefix .. text,
@@ -949,12 +1012,12 @@ local function snacks_select(items, opts, on_choice)
     -- Priority 2: Fallback to item.file if it exists (set in build_*_items).
     if get_file then
       entry.file = get_file(item)
-    elseif type(item) == "table" and item.file then
+    elseif type(item) == 'table' and item.file then
       entry.file = item.file
     end
-    
+
     -- [SAFETY]: Snacks throws error if 'file' is nil when expected. Ensure it's never nil if we suspect it's a file.
-    if entry.file == nil and type(item) == "table" and item.path then
+    if entry.file == nil and type(item) == 'table' and item.path then
       entry.file = item.path
     end
 
@@ -967,20 +1030,20 @@ local function snacks_select(items, opts, on_choice)
     table.insert(finder_items, entry)
   end
 
-  local title = opts.prompt or "Select"
-  title = title:gsub("^%s*", ""):gsub("[%s:]*$", "")
+  local title = opts.prompt or 'Select'
+  title = title:gsub('^%s*', ''):gsub('[%s:]*$', '')
 
   local layout = override.layout or scfg.layout
-  local preset = override.preset or scfg.preset or "vscode"
+  local preset = override.preset or scfg.preset or 'vscode'
   if layout then
     layout = vim.deepcopy(layout)
   else
     layout = { preset = preset }
   end
 
-  local Snacks = require("snacks")
-  
-  -- FIX FOR RESUME: 
+  local Snacks = require('snacks')
+
+  -- FIX FOR RESUME:
   -- 'completed' only protects 'on_close' (cancellation), but we allow
   -- 'confirm' to always execute, even if resumed.
   local completed = false
@@ -996,11 +1059,11 @@ local function snacks_select(items, opts, on_choice)
 
   local preview = override.preview
   if preview == true then
-    preview = "file"
+    preview = 'file'
   end
 
   return Snacks.picker.pick({
-    source = "select",
+    source = 'select',
     items = finder_items,
     format = format_fn,
     title = title,
@@ -1040,7 +1103,7 @@ end
 
 local function input_ui(opts, on_confirm)
   vim.ui.input(opts or {}, function(value)
-    if value == nil or value == "" then
+    if value == nil or value == '' then
       on_confirm(nil)
     else
       on_confirm(value)
@@ -1056,7 +1119,7 @@ local function build_note_items(root, here, label_mode)
   local base_items = get_note_index(root)
   local items = {}
 
-  label_mode = label_mode or M.config.label_mode or "auto"
+  label_mode = label_mode or M.config.label_mode or 'auto'
 
   for _, base in ipairs(base_items) do
     local label = resolve_item_label(base.stem, base.title, label_mode)
@@ -1088,9 +1151,9 @@ local function build_media_items(root, here)
 
   for _, path in ipairs(files) do
     local abs = norm(path)
-    local filename = vim.fn.fnamemodify(abs, ":t")
+    local filename = vim.fn.fnamemodify(abs, ':t')
     local rel_from_root = relpath(root, abs)
-    local folder = rel_from_root:match("(.+)/[^/]+$") or "."
+    local folder = rel_from_root:match('(.+)/[^/]+$') or '.'
     table.insert(items, {
       path = abs,
       file = abs,
@@ -1111,7 +1174,7 @@ end
 local function media_snacks_options()
   local mcfg = M.config.media or {}
   local scfg = mcfg.snacks or {}
-  
+
   -- [FIX]: Always return full config with get_file/get_title
   -- This prevents "item has no file" error in Snacks
   return {
@@ -1131,30 +1194,34 @@ end
 local function note_snacks_options(section)
   local display = M.config.display or {}
   local scfg = display.snacks
-  if type(scfg) ~= "table" then
+  if type(scfg) ~= 'table' then
     -- [FIX]: Fallback with required methods if config is missing
     return {
       preview = false,
-      get_file = function(item) return item.path end,
-      get_title = function(item) return item.label or item.stem end,
+      get_file = function(item)
+        return item.path
+      end,
+      get_title = function(item)
+        return item.label or item.stem
+      end,
     }
   end
   local base = scfg
-  if type(scfg.default) == "table" then
+  if type(scfg.default) == 'table' then
     base = scfg.default
   end
-  local opts = (section and type(scfg[section]) == "table" and scfg[section]) or base
-  
+  local opts = (section and type(scfg[section]) == 'table' and scfg[section]) or base
+
   -- [FIX]: Always return an object, never nil
-  if type(opts) ~= "table" then
+  if type(opts) ~= 'table' then
     opts = {}
   end
 
   local merged = opts
   if opts ~= base and base then
-    merged = vim.tbl_deep_extend("force", {}, base, opts)
+    merged = vim.tbl_deep_extend('force', {}, base, opts)
   end
-  
+
   return {
     preview = merged.preview,
     layout = merged.layout,
@@ -1169,85 +1236,91 @@ local function note_snacks_options(section)
   }
 end
 
-
 local function get_folder_icon(folder)
   local icfg = M.config.icons or {}
   if not icfg.enable then
-    return ""
+    return ''
   end
-  
+
   -- Normalize root
-  if folder == "." or folder == "" or folder == nil then
-    return (icfg.root_icon or " ") .. " "
+  if folder == '.' or folder == '' or folder == nil then
+    return (icfg.root_icon or ' ') .. ' '
   end
 
   -- Search custom
   if icfg.custom and icfg.custom[folder] then
-    return icfg.custom[folder] .. " "
+    return icfg.custom[folder] .. ' '
   end
 
   -- Default
-  return (icfg.default_icon or " ") .. " "
+  return (icfg.default_icon or ' ') .. ' '
 end
 
 local function get_media_icon(path)
   local icfg = M.config.icons or {}
-  if not icfg.enable then return "" end
-  
-  local fcfg = icfg.files or {
-    image = " ",
-    video = " ",
-    audio = "󰝚 ",
-    pdf   = "󰈙 ",
-    default = " ",
-  }
+  if not icfg.enable then
+    return ''
+  end
 
-  local ext = path:match("^.+(%.[^%.]+)$")
-  if not ext then return (fcfg.default or " ") .. " " end
+  local fcfg = icfg.files
+    or {
+      image = ' ',
+      video = ' ',
+      audio = '󰝚 ',
+      pdf = '󰈙 ',
+      default = ' ',
+    }
+
+  local ext = path:match('^.+(%.[^%.]+)$')
+  if not ext then
+    return (fcfg.default or ' ') .. ' '
+  end
   ext = ext:lower()
-  
+
   -- Images (use existing config list)
   local mcfg = M.config.media or {}
   for _, e in ipairs(mcfg.image_exts or {}) do
-    if e == ext then return (fcfg.image or " ") .. " " end
+    if e == ext then
+      return (fcfg.image or ' ') .. ' '
+    end
   end
-  
+
   -- Audio
-  if vim.tbl_contains({".mp3", ".wav", ".flac", ".m4a", ".ogg"}, ext) then
-    return (fcfg.audio or "󰝚 ") .. " "
+  if vim.tbl_contains({ '.mp3', '.wav', '.flac', '.m4a', '.ogg' }, ext) then
+    return (fcfg.audio or '󰝚 ') .. ' '
   end
-  
+
   -- Video
-  if vim.tbl_contains({".mp4", ".mov", ".mkv", ".webm", ".avi"}, ext) then
-    return (fcfg.video or " ") .. " "
+  if vim.tbl_contains({ '.mp4', '.mov', '.mkv', '.webm', '.avi' }, ext) then
+    return (fcfg.video or ' ') .. ' '
   end
-  
+
   -- PDF
-  if ext == ".pdf" then
-    return (fcfg.pdf or "󰈙 ") .. " "
+  if ext == '.pdf' then
+    return (fcfg.pdf or '󰈙 ') .. ' '
   end
-  
-  return (fcfg.default or " ") .. " "
+
+  return (fcfg.default or ' ') .. ' '
 end
 
 local function make_note_formatter(mode)
   return function(item)
-    if type(item) ~= "table" then
+    if type(item) ~= 'table' then
       return tostring(item)
     end
-    
+
     local icon = get_folder_icon(item.folder)
-    
-    if mode == "label" then
+
+    if mode == 'label' then
       return icon .. item.label
-    elseif mode == "filename" then
+    elseif mode == 'filename' then
       return icon .. item.stem
-    elseif mode == "path" then
+    elseif mode == 'path' then
       return icon .. item.rel_from_root
-    elseif mode == "label+path" then
-      return string.format("%s%s  ·  %s", icon, item.label, item.rel_from_root)
-    elseif mode == "filename+path" then
-      return string.format("%s%s  ·  %s", icon, item.stem, item.rel_from_root)
+    elseif mode == 'label+path' then
+      return string.format('%s%s  ·  %s', icon, item.label, item.rel_from_root)
+    elseif mode == 'filename+path' then
+      return string.format('%s%s  ·  %s', icon, item.stem, item.rel_from_root)
     else
       return icon .. item.label
     end
@@ -1256,15 +1329,15 @@ end
 
 local function make_media_formatter(mode)
   return function(item)
-    if type(item) ~= "table" then
+    if type(item) ~= 'table' then
       return tostring(item)
     end
-    
+
     -- Key change: use file type icon instead of folder icon
     local icon = get_media_icon(item.path)
-    
-    if mode == "filename+path" then
-      return string.format("%s%s  ·  %s", icon, item.filename, item.rel_from_root)
+
+    if mode == 'filename+path' then
+      return string.format('%s%s  ·  %s', icon, item.filename, item.rel_from_root)
     else
       return icon .. item.filename
     end
@@ -1278,18 +1351,18 @@ local function make_folder_formatter()
 end
 
 local function ensure_rel(rel)
-  if rel == "." then
-    return "./"
+  if rel == '.' then
+    return './'
   end
-  if rel:sub(1,1) == "." or rel:sub(1,1) == "/" then
+  if rel:sub(1, 1) == '.' or rel:sub(1, 1) == '/' then
     return rel
   end
-  return "./" .. rel
+  return './' .. rel
 end
 
 local function do_insert_link(label, rel)
-  local href = ensure_rel(rel or "")
-  local text = string.format("[%s](%s)", label, href)
+  local href = ensure_rel(rel or '')
+  local text = string.format('[%s](%s)', label, href)
   insert_text(text)
 end
 
@@ -1300,19 +1373,19 @@ local function do_insert_media_link(item)
 
   if is_img and mcfg.embed_images then
     if mcfg.prompt_alt_for_images then
-      input_ui({ prompt = " Image alt text:" }, function(alt)
-        alt = alt or ""
-        local text = string.format("![%s](%s)", alt, href)
+      input_ui({ prompt = ' Image alt text:' }, function(alt)
+        alt = alt or ''
+        local text = string.format('![%s](%s)', alt, href)
         insert_text(text)
       end)
     else
-      local text = string.format("![](%s)", href)
+      local text = string.format('![](%s)', href)
       insert_text(text)
     end
   else
-    local stem = vim.fn.fnamemodify(item.filename, ":r")
+    local stem = vim.fn.fnamemodify(item.filename, ':r')
     local label = filename_label(stem)
-    local text = string.format("[%s](%s)", label, href)
+    local text = string.format('[%s](%s)', label, href)
     insert_text(text)
   end
 end
@@ -1323,10 +1396,10 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
   root = norm(root)
   here = norm(here)
   local base_items = get_note_index(root)
-  local dirs = { "." }
-  local set = { ["."] = true }
+  local dirs = { '.' }
+  local set = { ['.'] = true }
   for _, item in ipairs(base_items) do
-    local folder = item.folder or "."
+    local folder = item.folder or '.'
     if not set[folder] then
       set[folder] = true
       table.insert(dirs, folder)
@@ -1336,7 +1409,7 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
 
   local preferred, prefset = {}, {}
   for _, d in ipairs(M.config.new_note_preferred_dirs or {}) do
-    local abs = norm(root .. "/" .. d)
+    local abs = norm(root .. '/' .. d)
     if vim.fn.isdirectory(abs) == 1 then
       table.insert(preferred, d)
       prefset[d] = true
@@ -1353,32 +1426,45 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
     end
   end
   if #choices == 0 then
-    choices = { "." }
+    choices = { '.' }
   end
 
-  select_ui(choices, { 
-    prompt = " Destination folder…",
+  select_ui(choices, {
+    prompt = ' Destination folder…',
     format_item = make_folder_formatter(),
   }, function(dir_rel)
     if not dir_rel then
       return
     end
-    input_ui({ prompt = "󱇧 New note title:" }, function(title)
-      if not title or title == "" then
-        return
-      end
+
+    -- Enrutador de plantillas
+    local folder_name = dir_rel:match('[^/]+$') or dir_rel
+    local clean_folder = folder_name:match('^%d+_(.*)') or folder_name
+
+    local templates = M.config.templates or {}
+    local tpl_config = templates[clean_folder] or templates.default or default_template
+
+    local is_auto = type(tpl_config) == 'table' and tpl_config.auto_title
+    local template_func = type(tpl_config) == 'table' and tpl_config.template or tpl_config
+
+    local function process_creation(title)
       local ncfg = M.config.new_note or {}
       local slug = slugify(title, { lowercase = ncfg.lowercase_filename })
-      local id   = generate_note_id()
-      local template = M.config.new_note_template or default_template
-      local content = template(title, slug, id)
+      local id = generate_note_id()
 
-      local target_dir = norm(root .. "/" .. dir_rel)
-      vim.fn.mkdir(target_dir, "p")
-      local path = norm(target_dir .. "/" .. slug .. ".md")
+      local content = ''
+      if type(template_func) == 'function' then
+        content = template_func(title, slug, id)
+      else
+        content = default_template(title, slug, id)
+      end
+
+      local target_dir = norm(root .. '/' .. dir_rel)
+      vim.fn.mkdir(target_dir, 'p')
+      local path = norm(target_dir .. '/' .. slug .. '.md')
 
       if not vim.loop.fs_stat(path) then
-        local f = io.open(path, "w")
+        local f = io.open(path, 'w')
         if f then
           f:write(content)
           f:close()
@@ -1396,14 +1482,27 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
       if mode == nil then
         mode = M.config.open_new_note
       end
-      if mode == "edit" then
+      if mode == 'edit' then
         vim.cmd.edit(path)
-      elseif mode == "split" then
+      elseif mode == 'split' then
         vim.cmd.split(path)
-      elseif mode == "vsplit" then
+      elseif mode == 'vsplit' then
         vim.cmd.vsplit(path)
       end
-    end)
+    end
+
+    if is_auto then
+      -- Salta el prompt de título e inyecta la fecha
+      local date_title = os.date('%Y-%m-%d')
+      process_creation(date_title)
+    else
+      input_ui({ prompt = '󱇧 New note title:' }, function(title)
+        if not title or title == '' then
+          return
+        end
+        process_creation(title)
+      end)
+    end
   end)
 end
 
@@ -1415,14 +1514,14 @@ function M.search_link(opts)
   local label_mode = opts.label_mode or M.config.label_mode
   local items = build_note_items(root, here, label_mode)
   if #items == 0 then
-    vim.notify("Astereon: no markdown notes found", vim.log.levels.WARN)
+    vim.notify('Astereon: no markdown notes found', vim.log.levels.WARN)
     return
   end
-  local mode = (M.config.display and M.config.display.search_link) or "filename"
+  local mode = (M.config.display and M.config.display.search_link) or 'filename'
   select_ui(items, {
-    prompt = " Insert link to note…",
+    prompt = ' Insert link to note…',
     format_item = make_note_formatter(mode),
-    snacks = note_snacks_options("search_link"),
+    snacks = note_snacks_options('search_link'),
   }, function(item)
     if not item then
       return
@@ -1437,7 +1536,7 @@ function M.folder_search_link(opts)
   local label_mode = opts.label_mode or M.config.label_mode
   local items = build_note_items(root, here, label_mode)
   if #items == 0 then
-    vim.notify("Astereon: no markdown notes found", vim.log.levels.WARN)
+    vim.notify('Astereon: no markdown notes found', vim.log.levels.WARN)
     return
   end
 
@@ -1451,8 +1550,8 @@ function M.folder_search_link(opts)
   end
   table.sort(folders)
 
-  select_ui(folders, { 
-    prompt = " Folder for note link…",
+  select_ui(folders, {
+    prompt = ' Folder for note link…',
     format_item = make_folder_formatter(),
   }, function(folder)
     if not folder then
@@ -1465,14 +1564,14 @@ function M.folder_search_link(opts)
       end
     end
     if #filtered == 0 then
-      vim.notify("Astereon: no notes in folder " .. folder, vim.log.levels.WARN)
+      vim.notify('Astereon: no notes in folder ' .. folder, vim.log.levels.WARN)
       return
     end
-    local mode = (M.config.display and M.config.display.folder_search_link) or "label+path"
+    local mode = (M.config.display and M.config.display.folder_search_link) or 'label+path'
     select_ui(filtered, {
-      prompt = " Insert link to note…",
+      prompt = ' Insert link to note…',
       format_item = make_note_formatter(mode),
-      snacks = note_snacks_options("folder_search_link"),
+      snacks = note_snacks_options('folder_search_link'),
     }, function(item)
       if not item then
         return
@@ -1487,7 +1586,7 @@ function M.create_and_link(opts)
   local root, here = vim.fn.getcwd(), buf_dir()
   local label_mode = opts.label_mode or M.config.label_mode
   create_note_ui(here, root, function(rel, title, path)
-    local stem = vim.fn.fnamemodify(path, ":t:r")
+    local stem = vim.fn.fnamemodify(path, ':t:r')
     local label = resolve_item_label(stem, title, label_mode)
     do_insert_link(label, rel)
   end, nil)
@@ -1496,7 +1595,7 @@ end
 function M.create_note(opts)
   opts = opts or {}
   local root, here = vim.fn.getcwd(), buf_dir()
-  local mode = opts.open_mode or "edit"
+  local mode = opts.open_mode or 'edit'
   create_note_ui(here, root, function(_, _, _) end, mode)
 end
 
@@ -1504,22 +1603,22 @@ function M.open_pick()
   local root, here = vim.fn.getcwd(), buf_dir()
   local items = build_note_items(root, here, M.config.label_mode)
   if #items == 0 then
-    vim.notify("Astereon: no markdown notes found", vim.log.levels.WARN)
+    vim.notify('Astereon: no markdown notes found', vim.log.levels.WARN)
     return
   end
-  local mode = (M.config.display and M.config.display.open_pick) or "filename"
+  local mode = (M.config.display and M.config.display.open_pick) or 'filename'
   select_ui(items, {
-    prompt = " Open note…",
+    prompt = ' Open note…',
     format_item = make_note_formatter(mode),
-    snacks = note_snacks_options("open_pick"),
+    snacks = note_snacks_options('open_pick'),
   }, function(item)
     if not item then
       return
     end
-    local open_mode = M.config.open_pick_mode or "edit"
-    if open_mode == "split" then
+    local open_mode = M.config.open_pick_mode or 'edit'
+    if open_mode == 'split' then
       vim.cmd.split(item.path)
-    elseif open_mode == "vsplit" then
+    elseif open_mode == 'vsplit' then
       vim.cmd.vsplit(item.path)
     else
       vim.cmd.edit(item.path)
@@ -1531,7 +1630,7 @@ function M.open_folder_pick()
   local root, here = vim.fn.getcwd(), buf_dir()
   local items = build_note_items(root, here, M.config.label_mode)
   if #items == 0 then
-    vim.notify("Astereon: no markdown notes found", vim.log.levels.WARN)
+    vim.notify('Astereon: no markdown notes found', vim.log.levels.WARN)
     return
   end
 
@@ -1545,8 +1644,8 @@ function M.open_folder_pick()
   end
   table.sort(folders)
 
-  select_ui(folders, { 
-    prompt = " Folder for note…",
+  select_ui(folders, {
+    prompt = ' Folder for note…',
     format_item = make_folder_formatter(),
   }, function(folder)
     if not folder then
@@ -1559,22 +1658,22 @@ function M.open_folder_pick()
       end
     end
     if #filtered == 0 then
-      vim.notify("Astereon: no notes in folder " .. folder, vim.log.levels.WARN)
+      vim.notify('Astereon: no notes in folder ' .. folder, vim.log.levels.WARN)
       return
     end
-    local mode = (M.config.display and M.config.display.open_folder_pick) or "label+path"
+    local mode = (M.config.display and M.config.display.open_folder_pick) or 'label+path'
     select_ui(filtered, {
-      prompt = " Open note…",
+      prompt = ' Open note…',
       format_item = make_note_formatter(mode),
-      snacks = note_snacks_options("open_folder_pick"),
+      snacks = note_snacks_options('open_folder_pick'),
     }, function(item)
       if not item then
         return
       end
-      local open_mode = M.config.open_pick_mode or "edit"
-      if open_mode == "split" then
+      local open_mode = M.config.open_pick_mode or 'edit'
+      if open_mode == 'split' then
         vim.cmd.split(item.path)
-      elseif open_mode == "vsplit" then
+      elseif open_mode == 'vsplit' then
         vim.cmd.vsplit(item.path)
       else
         vim.cmd.edit(item.path)
@@ -1589,12 +1688,12 @@ function M.search_media_link()
   local root, here = vim.fn.getcwd(), buf_dir()
   local items = build_media_items(root, here)
   if #items == 0 then
-    vim.notify("Astereon: no media files found", vim.log.levels.WARN)
+    vim.notify('Astereon: no media files found', vim.log.levels.WARN)
     return
   end
-  local mode = (M.config.media and M.config.media.display) or "filename"
+  local mode = (M.config.media and M.config.media.display) or 'filename'
   select_ui(items, {
-    prompt = " Insert link to media…",
+    prompt = ' Insert link to media…',
     format_item = make_media_formatter(mode),
     snacks = media_snacks_options(),
   }, function(item)
@@ -1609,12 +1708,12 @@ function M.open_media_pick()
   local root, here = vim.fn.getcwd(), buf_dir()
   local items = build_media_items(root, here)
   if #items == 0 then
-    vim.notify("Astereon: no media files found", vim.log.levels.WARN)
+    vim.notify('Astereon: no media files found', vim.log.levels.WARN)
     return
   end
-  local mode = (M.config.media and M.config.media.display) or "filename"
+  local mode = (M.config.media and M.config.media.display) or 'filename'
   select_ui(items, {
-    prompt = " Open media…",
+    prompt = ' Open media…',
     format_item = make_media_formatter(mode),
     snacks = media_snacks_options(),
   }, function(item)
@@ -1647,55 +1746,55 @@ end
 -- ========= Rename current file =========
 
 local function prompt_overwrite(target_name, cb)
-  select_ui({ "No", "Yes" }, { prompt = (" Overwrite %q?"):format(target_name) }, function(choice)
-    cb(choice == "Yes")
+  select_ui({ 'No', 'Yes' }, { prompt = (' Overwrite %q?'):format(target_name) }, function(choice)
+    cb(choice == 'Yes')
   end)
 end
 
 local function process_links_in_file(fpath, old_abs, new_abs, label_for_note, old_title)
-  local dir = norm(vim.fn.fnamemodify(fpath, ":p:h"))
+  local dir = norm(vim.fn.fnamemodify(fpath, ':p:h'))
   local old_rel = relpath(dir, old_abs)
   local new_rel = relpath(dir, new_abs)
 
   local rcfg = M.config.rename or {}
   local include_images = rcfg.include_images ~= false
   local update_ref = rcfg.update_reference_style ~= false
-  local update_link_text_mode = rcfg.update_link_text or "auto"
-  local update_image_alt_mode = rcfg.update_image_alt or "auto"
+  local update_link_text_mode = rcfg.update_link_text or 'auto'
+  local update_image_alt_mode = rcfg.update_image_alt or 'auto'
 
   local ok, lines = pcall(vim.fn.readfile, fpath)
-  if not ok or type(lines) ~= "table" then
+  if not ok or type(lines) ~= 'table' then
     return
   end
 
-  local normalized_old = old_rel:gsub("^%./","")
+  local normalized_old = old_rel:gsub('^%./', '')
   local changed = false
 
-  local old_stem = vim.fn.fnamemodify(old_abs, ":t:r")
+  local old_stem = vim.fn.fnamemodify(old_abs, ':t:r')
   local old_lbl = filename_label(old_stem)
-  local has_label = label_for_note and label_for_note ~= ""
+  local has_label = label_for_note and label_for_note ~= ''
 
   for i, line in ipairs(lines) do
     local newline = line
 
     -- inline links and images: ![alt](url) or [text](url)
-    newline = newline:gsub("(!?)%[([^%]]*)%]%(([^%)]+)%)", function(bang, text, url)
-      local clean_url = url:gsub("%s+$","")
-      local normalized_url = clean_url:gsub("^%./","")
+    newline = newline:gsub('(!?)%[([^%]]*)%]%(([^%)]+)%)', function(bang, text, url)
+      local clean_url = url:gsub('%s+$', '')
+      local normalized_url = clean_url:gsub('^%./', '')
       if normalized_url ~= normalized_old then
-        return bang .. "[" .. text .. "](" .. url .. ")"
+        return bang .. '[' .. text .. '](' .. url .. ')'
       end
 
-      local is_img = (bang == "!")
+      local is_img = (bang == '!')
       local new_url = new_rel
       local new_text = text
 
       if has_label then
         local mode = is_img and update_image_alt_mode or update_link_text_mode
-        local is_enabled = (mode ~= "keep") and (not is_img or include_images)
+        local is_enabled = (mode ~= 'keep') and (not is_img or include_images)
 
-        if is_enabled and mode == "auto" then
-          local is_default = (text == "" or text == old_stem or text == old_lbl or text == old_title)
+        if is_enabled and mode == 'auto' then
+          local is_default = (text == '' or text == old_stem or text == old_lbl or text == old_title)
           new_text = is_default and label_for_note or text
         elseif is_enabled then
           new_text = label_for_note
@@ -1703,12 +1802,12 @@ local function process_links_in_file(fpath, old_abs, new_abs, label_for_note, ol
       end
 
       changed = true
-      return bang .. "[" .. new_text .. "](" .. new_url .. ")"
+      return bang .. '[' .. new_text .. '](' .. new_url .. ')'
     end)
 
     if update_ref then
-      newline = newline:gsub("^(%s*%[[^%]]+%]:%s*)(%S+)(.*)", function(prefix, url, rest)
-        local normalized_url = url:gsub("^%./","")
+      newline = newline:gsub('^(%s*%[[^%]]+%]:%s*)(%S+)(.*)', function(prefix, url, rest)
+        local normalized_url = url:gsub('^%./', '')
         if normalized_url ~= normalized_old then
           return prefix .. url .. rest
         end
@@ -1729,60 +1828,60 @@ end
 
 function M.rename_current_file()
   local current = vim.api.nvim_buf_get_name(0)
-  if current == "" then
-    vim.notify("Astereon: current buffer has no file name", vim.log.levels.WARN)
+  if current == '' then
+    vim.notify('Astereon: current buffer has no file name', vim.log.levels.WARN)
     return
   end
 
-  local old_abs = norm(vim.fn.fnamemodify(current, ":p"))
-  local dir = norm(vim.fn.fnamemodify(old_abs, ":p:h"))
-  local ext = old_abs:match("^.+(%.[^%.]+)$") or ""
-  local default_name = vim.fn.fnamemodify(old_abs, ":t")
+  local old_abs = norm(vim.fn.fnamemodify(current, ':p'))
+  local dir = norm(vim.fn.fnamemodify(old_abs, ':p:h'))
+  local ext = old_abs:match('^.+(%.[^%.]+)$') or ''
+  local default_name = vim.fn.fnamemodify(old_abs, ':t')
 
-  input_ui({ prompt = "󱇧 New file name:", default = default_name }, function(input)
-    if not input or input == "" or input == default_name then
+  input_ui({ prompt = '󱇧 New file name:', default = default_name }, function(input)
+    if not input or input == '' or input == default_name then
       return
     end
     local new_name = input
-    if not new_name:match("%.[%w]+$") then
+    if not new_name:match('%.[%w]+$') then
       new_name = new_name .. ext
     end
-    local new_abs = norm(dir .. "/" .. new_name)
+    local new_abs = norm(dir .. '/' .. new_name)
     if new_abs == old_abs then
       return
     end
 
     local function proceed()
       -- 1. Silently save any pending changes in Neovim
-      vim.cmd("silent! write")
+      vim.cmd('silent! write')
 
       -- Extract the old title BEFORE the file disappears from the disk
       local old_title = read_first_title_fallback(old_abs)
 
       local ok, err = os.rename(old_abs, new_abs)
       if not ok then
-        vim.notify("Astereon: rename failed: " .. tostring(err), vim.log.levels.ERROR)
+        vim.notify('Astereon: rename failed: ' .. tostring(err), vim.log.levels.ERROR)
         return
       end
 
       if vim.api.nvim_buf_get_name(0) == current then
         vim.api.nvim_buf_set_name(0, new_abs)
-        
+
         -- Strict frontmatter synchronization (if enabled)
         local rcfg = M.config.rename or {}
         if rcfg.update_yaml_title then
           local new_h1 = read_first_title_fallback(new_abs)
-          if new_h1 and new_h1 ~= "" then
+          if new_h1 and new_h1 ~= '' then
             update_yaml_title_in_buf(0, new_h1)
           end
         end
 
         -- 2. Force silent write so Neovim assumes control of the new disk inode
-        vim.cmd("silent! write!")
+        vim.cmd('silent! write!')
       end
 
       local title = read_first_title_fallback(new_abs)
-      local stem = vim.fn.fnamemodify(new_abs, ":t:r")
+      local stem = vim.fn.fnamemodify(new_abs, ':t:r')
       local label_for_note = compute_new_label(stem, title)
 
       local root = norm(vim.fn.getcwd())
@@ -1792,7 +1891,7 @@ function M.rename_current_file()
       end
       Index.invalidate(root)
 
-      vim.notify("Astereon: file renamed and links updated", vim.log.levels.INFO)
+      vim.notify('Astereon: file renamed and links updated', vim.log.levels.INFO)
     end
 
     if vim.loop.fs_stat(new_abs) then
@@ -1811,7 +1910,7 @@ end
 function M.refresh_index()
   local root = norm(vim.fn.getcwd())
   refresh_note_index(root)
-  vim.notify("Astereon: note index refreshed", vim.log.levels.INFO)
+  vim.notify('Astereon: note index refreshed', vim.log.levels.INFO)
 end
 
 function M.rebuild_titles_cache()
@@ -1820,33 +1919,32 @@ function M.rebuild_titles_cache()
 
   -- Remove on-disk titles cache so the next refresh rebuilds everything.
   pcall(vim.loop.fs_unlink, cache_path)
-  pcall(vim.loop.fs_unlink, cache_path .. ".tmp")
+  pcall(vim.loop.fs_unlink, cache_path .. '.tmp')
 
   -- Drop in-memory index and rebuild (also recreates cache file).
   Index.invalidate(root)
   refresh_note_index(root)
 
-  vim.notify("Astereon: titles cache rebuilt", vim.log.levels.INFO)
+  vim.notify('Astereon: titles cache rebuilt', vim.log.levels.INFO)
 end
-
 
 local function setup_auto_refresh()
   local cfg = M.config.auto_refresh or {}
   if cfg.enable == false then
     return
   end
-  local events = cfg.events or { "BufWritePost", "BufFilePost", "DirChanged" }
-  local group = vim.api.nvim_create_augroup("AstereonAutoRefresh", { clear = true })
+  local events = cfg.events or { 'BufWritePost', 'BufFilePost', 'DirChanged' }
+  local group = vim.api.nvim_create_augroup('AstereonAutoRefresh', { clear = true })
   vim.api.nvim_create_autocmd(events, {
     group = group,
     callback = function(params)
       local event = params.event
-      if event == "DirChanged" then
+      if event == 'DirChanged' then
         Index.invalidate(norm(vim.fn.getcwd()))
         return
       end
-      local file = params.match or params.file or ""
-      if file == "" then
+      local file = params.match or params.file or ''
+      if file == '' then
         return
       end
       if is_markdown(file) then
@@ -1859,91 +1957,113 @@ end
 -- ========= Setup =========
 
 function M.setup(cfg)
-  M.config = vim.tbl_deep_extend("force", M.config, cfg or {})
+  M.config = vim.tbl_deep_extend('force', M.config, cfg or {})
   setup_auto_refresh()
 
-  vim.api.nvim_create_user_command("InsertMdLink", function(o)
+  vim.api.nvim_create_user_command('InsertMdLink', function(o)
     local arg = o.args
     local lm = nil
-    if arg == "auto" or arg == "title" or arg == "basename" then
+    if arg == 'auto' or arg == 'title' or arg == 'basename' then
       lm = arg
     end
     M.search_link({ label_mode = lm })
   end, {
-    nargs = "?",
+    nargs = '?',
     complete = function()
-      return { "auto", "title", "basename" }
+      return { 'auto', 'title', 'basename' }
     end,
   })
 
   -- NEW: rebuild titles cache (safe; only touches stdpath("cache")/astereon)
-  vim.api.nvim_create_user_command("AstereonRebuildTitlesCache", function()
+  vim.api.nvim_create_user_command('AstereonRebuildTitlesCache', function()
     M.rebuild_titles_cache()
   end, {})
 
-  vim.api.nvim_create_user_command("AstereonNewNote", function()
-    M.create_note({ open_mode = "edit" })
+  vim.api.nvim_create_user_command('AstereonNewNote', function()
+    M.create_note({ open_mode = 'edit' })
   end, {})
 
-  vim.api.nvim_create_user_command("AstereonRename", function()
+  vim.api.nvim_create_user_command('AstereonRename', function()
     M.rename_current_file()
   end, {})
 
-  vim.api.nvim_create_user_command("AstereonRefreshIndex", function()
+  vim.api.nvim_create_user_command('AstereonRefreshIndex', function()
     M.refresh_index()
   end, {})
 
-  vim.api.nvim_create_user_command("AstereonOpen", function()
+  vim.api.nvim_create_user_command('AstereonOpen', function()
     M.open_pick()
   end, {})
 
-  vim.api.nvim_create_user_command("AstereonOpenFolder", function()
+  vim.api.nvim_create_user_command('AstereonOpenFolder', function()
     M.open_folder_pick()
   end, {})
 
-  vim.api.nvim_create_user_command("AstereonUpdateId", function()
+  vim.api.nvim_create_user_command('AstereonUpdateId', function()
     M.update_note_id()
   end, {})
 
-  if (M.config.daily and M.config.daily.enable) then
-    vim.api.nvim_create_user_command("AstereonDailyToday", function()
+  if M.config.daily and M.config.daily.enable then
+    vim.api.nvim_create_user_command('AstereonDailyToday', function()
       M.open_daily_today()
     end, {})
-    vim.api.nvim_create_user_command("AstereonDailyNext", function()
+    vim.api.nvim_create_user_command('AstereonDailyNext', function()
       M.open_daily_next()
     end, {})
-    vim.api.nvim_create_user_command("AstereonDailyPrev", function()
+    vim.api.nvim_create_user_command('AstereonDailyPrev', function()
       M.open_daily_prev()
     end, {})
   end
 
   if M.config.set_default_keymaps then
     local map = vim.keymap.set
-    map("n", "<leader>nn", function() M.create_note({ open_mode = "edit" }) end,
-      { desc = "Astereon: create note" })
-    map("n", "<leader>nL", function() M.create_and_link() end,    { desc = "Astereon: create note + link" })
-    map("n", "<leader>nl", function() M.search_link() end,        { desc = "Astereon: insert note link" })
-    map("n", "<leader>nf", function() M.folder_search_link() end, { desc = "Astereon: folder link" })
-    map("n", "<leader>no", function() M.open_pick() end,          { desc = "Astereon: open note" })
-    map("n", "<leader>nF", function() M.open_folder_pick() end,   { desc = "Astereon: open by folder" })
-    map("n", "<leader>mi", function() M.search_media_link() end,  { desc = "Astereon: insert media link" })
-    map("n", "<leader>mo", function() M.open_media_pick() end,    { desc = "Astereon: open media" })
-    map("n", "<leader>rf", function() M.rename_current_file() end, { desc = "Astereon: rename note" })
-    map("n", "<leader>uy", function() M.update_note_id() end,     { desc = "Astereon: regenerate YAML id" })
+    map('n', '<leader>nn', function()
+      M.create_note({ open_mode = 'edit' })
+    end, { desc = 'Astereon: create note' })
+    map('n', '<leader>nL', function()
+      M.create_and_link()
+    end, { desc = 'Astereon: create note + link' })
+    map('n', '<leader>nl', function()
+      M.search_link()
+    end, { desc = 'Astereon: insert note link' })
+    map('n', '<leader>nf', function()
+      M.folder_search_link()
+    end, { desc = 'Astereon: folder link' })
+    map('n', '<leader>no', function()
+      M.open_pick()
+    end, { desc = 'Astereon: open note' })
+    map('n', '<leader>nF', function()
+      M.open_folder_pick()
+    end, { desc = 'Astereon: open by folder' })
+    map('n', '<leader>mi', function()
+      M.search_media_link()
+    end, { desc = 'Astereon: insert media link' })
+    map('n', '<leader>mo', function()
+      M.open_media_pick()
+    end, { desc = 'Astereon: open media' })
+    map('n', '<leader>rf', function()
+      M.rename_current_file()
+    end, { desc = 'Astereon: rename note' })
+    map('n', '<leader>uy', function()
+      M.update_note_id()
+    end, { desc = 'Astereon: regenerate YAML id' })
 
     local dcfg = M.config.daily or {}
     if dcfg.enable and dcfg.mappings then
       if dcfg.mappings.today then
-        map("n", dcfg.mappings.today, function() M.open_daily_today() end,
-          { desc = "Astereon: open today's daily note" })
+        map('n', dcfg.mappings.today, function()
+          M.open_daily_today()
+        end, { desc = "Astereon: open today's daily note" })
       end
       if dcfg.mappings.next then
-        map("n", dcfg.mappings.next, function() M.open_daily_next() end,
-          { desc = "Astereon: open next daily note" })
+        map('n', dcfg.mappings.next, function()
+          M.open_daily_next()
+        end, { desc = 'Astereon: open next daily note' })
       end
       if dcfg.mappings.prev then
-        map("n", dcfg.mappings.prev, function() M.open_daily_prev() end,
-          { desc = "Astereon: open previous daily note" })
+        map('n', dcfg.mappings.prev, function()
+          M.open_daily_prev()
+        end, { desc = 'Astereon: open previous daily note' })
       end
     end
   end

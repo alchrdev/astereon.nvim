@@ -1396,35 +1396,30 @@ local function create_note_ui(here, root, after_create_cb, open_mode)
   root = norm(root)
   here = norm(here)
   local base_items = get_note_index(root)
-  local dirs = { '.' }
-  local set = { ['.'] = true }
+
+  local set = {}
+  local choices = {}
+
   for _, item in ipairs(base_items) do
     local folder = item.folder or '.'
-    if not set[folder] then
+    if folder ~= '.' and not set[folder] then
       set[folder] = true
-      table.insert(dirs, folder)
+      table.insert(choices, folder)
     end
   end
-  table.sort(dirs)
 
-  local preferred, prefset = {}, {}
   for _, d in ipairs(M.config.new_note_preferred_dirs or {}) do
     local abs = norm(root .. '/' .. d)
     if vim.fn.isdirectory(abs) == 1 then
-      table.insert(preferred, d)
-      prefset[d] = true
+      if not set[d] and d ~= '.' then
+        set[d] = true
+        table.insert(choices, d)
+      end
     end
   end
 
-  local choices = {}
-  for _, d in ipairs(preferred) do
-    table.insert(choices, d)
-  end
-  for _, d in ipairs(dirs) do
-    if not prefset[d] then
-      table.insert(choices, d)
-    end
-  end
+  table.sort(choices)
+
   if #choices == 0 then
     choices = { '.' }
   end

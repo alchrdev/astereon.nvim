@@ -1863,6 +1863,9 @@ function M.rename_current_file()
         vim.api.nvim_buf_set_name(0, new_abs)
 
         -- Strict frontmatter synchronization (if enabled)
+
+        vim.cmd('silent! edit!')
+
         local rcfg = M.config.rename or {}
         if rcfg.update_yaml_title then
           local new_h1 = read_first_title_fallback(new_abs)

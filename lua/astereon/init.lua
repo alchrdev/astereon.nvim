@@ -1823,6 +1823,7 @@ end
 
 function M.rename_current_file()
   local current = vim.api.nvim_buf_get_name(0)
+  local bufnr = vim.api.nvim_get_current_buf() -- ← capturar ANTES de cualquier async
   if current == '' then
     vim.notify('Astereon: current buffer has no file name', vim.log.levels.WARN)
     return
@@ -1848,7 +1849,9 @@ function M.rename_current_file()
 
     local function proceed()
       -- 1. Silently save any pending changes in Neovim
-      vim.cmd('silent! write')
+      vim.api.nvim_buf_call(bufnr, function()
+        vim.cmd('silent! write')
+      end)
 
       -- Extract the old title BEFORE the file disappears from the disk
       local old_title = read_first_title_fallback(old_abs)
@@ -1859,23 +1862,19 @@ function M.rename_current_file()
         return
       end
 
-      if vim.api.nvim_buf_get_name(0) == current then
-        vim.api.nvim_buf_set_name(0, new_abs)
-
-        -- Strict frontmatter synchronization (if enabled)
-
-        vim.cmd('silent! edit!')
-
-        local rcfg = M.config.rename or {}
-        if rcfg.update_yaml_title then
-          local new_h1 = read_first_title_fallback(new_abs)
-          if new_h1 and new_h1 ~= '' then
-            update_yaml_title_in_buf(0, new_h1)
+      if vim.api.nvim_buf_get_name(bufnr) == current then
+        vim.api.nvim_buf_set_name(bufnr, new_abs)
+        vim.api.nvim_buf_call(bufnr, function()
+          vim.cmd('edit!') -- recargar desde new_abs en el contexto correcto
+          local rcfg = M.config.rename or {}
+          if rcfg.update_yaml_title then
+            local new_h1 = read_first_title_fallback(new_abs)
+            if new_h1 and new_h1 ~= '' then
+              update_yaml_title_in_buf(bufnr, new_h1)
+            end
           end
-        end
-
-        -- 2. Force silent write so Neovim assumes control of the new disk inode
-        vim.cmd('silent! write!')
+          vim.cmd('write!')
+        end)
       end
 
       local title = read_first_title_fallback(new_abs)
